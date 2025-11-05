@@ -127,7 +127,7 @@ const RichTextEditor = ({
       <div className={`flex-1 flex flex-col ${getWritingModeClass()} rounded-2xl overflow-hidden shadow-xl border border-orange-200`}>
         {/* Responsive Toolbar */}
         {showToolbar && (
-          <div className="bg-gradient-to-r from-orange-500 to-red-500 text-white">
+          <div className="bg-linear-to-r from-orange-500 to-red-500 text-white">
             {/* Mobile Layout: Compact two-row */}
             <div className="block lg:hidden p-2">
               <div className="flex flex-col gap-2">

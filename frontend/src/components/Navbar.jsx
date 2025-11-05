@@ -59,7 +59,7 @@ const Navbar = () => {
           {/* Logo */}
           <Link to="/feed" className="flex items-center space-x-3 group">
             <div className="relative">
-              <div className="w-10 h-10 lg:w-12 lg:h-12 bg-gradient-to-br from-orange-500 to-red-500 rounded-2xl flex items-center justify-center shadow-lg group-hover:shadow-xl transition-all">
+              <div className="w-10 h-10 lg:w-12 lg:h-12 bg-linear-to-br from-orange-500 to-red-500 rounded-2xl flex items-center justify-center shadow-lg group-hover:shadow-xl transition-all">
                 <BookOpen className="h-5 w-5 lg:h-6 lg:w-6 text-white" />
               </div>
             </div>
@@ -96,7 +96,7 @@ const Navbar = () => {
                 className="flex items-center space-x-2 lg:space-x-3 p-2 rounded-full hover:bg-gray-50 transition-all group"
               >
                 <div className="relative">
-                  <div className="w-8 h-8 lg:w-10 lg:h-10 bg-gradient-to-br from-orange-500 to-red-500 rounded-full flex items-center justify-center text-white font-semibold text-sm shadow-md">
+                  <div className="w-8 h-8 lg:w-10 lg:h-10 bg-linear-to-br from-orange-500 to-red-500 rounded-full flex items-center justify-center text-white font-semibold text-sm shadow-md">
                     {user?.profilePicture ? (
                       <img 
                         src={user.profilePicture} 
@@ -119,7 +119,7 @@ const Navbar = () => {
               {isUserMenuOpen && (
                 <div className="absolute right-0 mt-2 w-72 bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden z-50">
                   {/* User Info Header */}
-                  <div className="p-6 bg-gradient-to-r from-orange-500 to-red-500 text-white">
+                  <div className="p-6 bg-linear-to-r from-orange-500 to-red-500 text-white">
                     <div className="flex items-center space-x-4">
                       <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center text-lg font-bold">
                         {user?.profilePicture ? (
@@ -240,7 +240,7 @@ const Navbar = () => {
               {/* Mobile User Section */}
               <div className="border-t border-gray-100 pt-4 mt-4">
                 <div className="flex items-center space-x-4 px-6 py-3 bg-gray-50 rounded-lg mx-4 mb-4">
-                  <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-red-500 rounded-full flex items-center justify-center text-white font-semibold">
+                  <div className="w-10 h-10 bg-linear-to-br from-orange-500 to-red-500 rounded-full flex items-center justify-center text-white font-semibold">
                     {user?.profilePicture ? (
                       <img 
                         src={user.profilePicture} 

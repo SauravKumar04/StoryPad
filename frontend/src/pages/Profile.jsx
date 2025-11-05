@@ -165,7 +165,7 @@ const Profile = () => {
                     onClick={() => navigate(`/story/${story._id}`)}
                   >
                     {/* Story Cover */}
-                    <div className="relative aspect-[3/4] overflow-hidden bg-gray-100">
+                    <div className="relative aspect-3/4 overflow-hidden bg-gray-100">
                       {story.coverImage ? (
                         <img
                           src={story.coverImage}
@@ -174,7 +174,7 @@ const Profile = () => {
                           loading="lazy"
                         />
                       ) : (
-                        <div className="w-full h-full bg-gradient-to-br from-orange-100 via-amber-50 to-red-50 flex items-center justify-center">
+                        <div className="w-full h-full bg-linear-to-br from-orange-100 via-amber-50 to-red-50 flex items-center justify-center">
                           <BookOpen className="h-8 w-8 sm:h-12 sm:w-12 text-orange-400" />
                         </div>
                       )}
