@@ -2,12 +2,7 @@ import User from '../models/User.js';
 import Story from '../models/Story.js';
 import Chapter from '../models/Chapter.js';
 import bcrypt from 'bcryptjs';
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+import { deleteFromCloudinary, extractPublicId } from '../config/cloudinary.js';
 
 export const getProfile = async (req, res) => {
   try {
@@ -146,31 +141,46 @@ export const updatePassword = async (req, res) => {
 
 export const uploadAvatar = async (req, res) => {
   try {
+    console.log('Upload avatar request received');
+    console.log('File:', req.file);
+    console.log('User ID:', req.userId);
+
     if (!req.file) {
+      console.log('No file uploaded');
       return res.status(400).json({ message: 'No file uploaded' });
     }
 
     const user = await User.findById(req.userId);
     if (!user) {
+      console.log('User not found:', req.userId);
       return res.status(404).json({ message: 'User not found' });
     }
 
-    // Delete old avatar file if it exists
+    // Delete old avatar from Cloudinary if it exists
     if (user.profilePicture) {
-      const oldAvatarPath = path.join(__dirname, '../uploads/avatars/', path.basename(user.profilePicture));
-      if (fs.existsSync(oldAvatarPath)) {
-        fs.unlinkSync(oldAvatarPath);
+      const oldPublicId = extractPublicId(user.profilePicture);
+      if (oldPublicId) {
+        try {
+          console.log('Deleting old avatar:', oldPublicId);
+          await deleteFromCloudinary(oldPublicId);
+        } catch (error) {
+          console.error('Error deleting old avatar from Cloudinary:', error);
+          // Continue with upload even if deletion fails
+        }
       }
     }
 
-    // Update user with new avatar URL
-    const avatarUrl = `/uploads/avatars/${req.file.filename}`;
+    // Cloudinary automatically uploads the file and provides the URL
+    const avatarUrl = req.file.path; // Cloudinary URL
+    console.log('New avatar URL:', avatarUrl);
+    
     user.profilePicture = avatarUrl;
     await user.save();
 
     const userResponse = user.toObject();
     delete userResponse.password;
 
+    console.log('Avatar upload successful');
     res.json({ 
       message: 'Avatar uploaded successfully',
       profilePicture: avatarUrl,
@@ -178,7 +188,11 @@ export const uploadAvatar = async (req, res) => {
     });
   } catch (error) {
     console.error('Avatar upload error:', error);
-    res.status(500).json({ message: 'Failed to upload avatar' });
+    console.error('Error stack:', error.stack);
+    res.status(500).json({ 
+      message: 'Failed to upload avatar',
+      error: error.message 
+    });
   }
 };
 
@@ -189,11 +203,16 @@ export const removeAvatar = async (req, res) => {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    // Delete avatar file if it exists
+    // Delete avatar from Cloudinary if it exists
     if (user.profilePicture) {
-      const avatarPath = path.join(__dirname, '../uploads/avatars/', path.basename(user.profilePicture));
-      if (fs.existsSync(avatarPath)) {
-        fs.unlinkSync(avatarPath);
+      const publicId = extractPublicId(user.profilePicture);
+      if (publicId) {
+        try {
+          await deleteFromCloudinary(publicId);
+        } catch (error) {
+          console.error('Error deleting avatar from Cloudinary:', error);
+          // Continue with removal even if Cloudinary deletion fails
+        }
       }
     }
 
@@ -251,11 +270,16 @@ export const deleteAccount = async (req, res) => {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    // Delete user's avatar file if it exists
+    // Delete user's avatar from Cloudinary if it exists
     if (user.profilePicture) {
-      const avatarPath = path.join(__dirname, '../uploads/avatars/', path.basename(user.profilePicture));
-      if (fs.existsSync(avatarPath)) {
-        fs.unlinkSync(avatarPath);
+      const publicId = extractPublicId(user.profilePicture);
+      if (publicId) {
+        try {
+          await deleteFromCloudinary(publicId);
+        } catch (error) {
+          console.error('Error deleting avatar from Cloudinary:', error);
+          // Continue with account deletion even if avatar deletion fails
+        }
       }
     }
 

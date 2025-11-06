@@ -138,10 +138,8 @@ const UserSettings = () => {
         },
       });
 
-      // Update profile data with new image URL - construct full URL
-      const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
-      const serverURL = baseURL.replace('/api', '');
-      const imageUrl = `${serverURL}${response.data.profilePicture}`;
+      // Use the Cloudinary URL directly (no need to construct local URL)
+      const imageUrl = response.data.profilePicture;
       
       setProfileData(prev => ({ ...prev, profilePicture: imageUrl }));
       setPreviewImage(null); // Clear preview since we now have the actual image

@@ -11,7 +11,7 @@ import {
   deleteAccount 
 } from '../controllers/userController.js';
 import auth from '../middleware/auth.js';
-import upload from '../middleware/upload.js';
+import upload from '../config/cloudinary.js';
 
 const router = express.Router();
 
