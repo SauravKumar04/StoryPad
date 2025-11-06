@@ -123,7 +123,7 @@ const RichTextEditor = ({
   };
 
   const editorContent = (
-    <div className={`${className} ${isFullscreen ? 'fixed inset-0 z-50 flex flex-col' : 'relative'}`}>
+    <div className={`rich-text-editor ${className} ${isFullscreen ? 'fixed inset-0 z-50 flex flex-col' : 'relative flex flex-col'}`}>
       <div className={`flex-1 flex flex-col ${getWritingModeClass()} rounded-2xl overflow-hidden shadow-xl border border-orange-200`}>
         {/* Responsive Toolbar */}
         {showToolbar && (
@@ -311,13 +311,13 @@ const RichTextEditor = ({
         )}
 
         {/* Mobile-Optimized Editor Content */}
-        <div className="flex-1 flex flex-col">
+        <div className="flex-1 flex flex-col min-h-0">
           {isPreview ? (
             <div 
               className={`flex-1 p-4 sm:p-8 overflow-y-auto prose prose-sm sm:prose-lg max-w-none ${
                 writingMode === 'focus' ? 'prose-invert' : ''
               }`}
-              style={{ minHeight }}
+              style={{ minHeight, maxHeight: isFullscreen ? '70vh' : '60vh' }}
               dangerouslySetInnerHTML={{ __html: value }}
             />
           ) : (
@@ -334,10 +334,15 @@ const RichTextEditor = ({
               }`}
               style={{ 
                 minHeight,
+                maxHeight: isFullscreen ? '70vh' : '60vh',
                 fontSize: '16px', // Prevents zoom on iOS
                 lineHeight: '1.6',
                 WebkitTextSizeAdjust: '100%', // Prevents font scaling on mobile
-                touchAction: 'manipulation' // Improves touch response
+                touchAction: 'manipulation', // Improves touch response
+                overflowWrap: 'break-word',
+                wordWrap: 'break-word',
+                overflowY: 'auto',
+                WebkitOverflowScrolling: 'touch' // Smooth scrolling on iOS
               }}
               placeholder={placeholder}
               suppressContentEditableWarning={true}

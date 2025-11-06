@@ -1018,13 +1018,13 @@ const CreateStory = () => {
           </div>
 
           {/* Rich Text Editor */}
-          <div className="flex-1 overflow-hidden">
+          <div className="flex-1 flex flex-col min-h-0">
             <RichTextEditor
               value={getCurrentChapter().content}
               onChange={(content) => updateChapter(getCurrentChapter().id, 'content', content)}
               placeholder="Begin your chapter..."
-              className="h-full"
-              minHeight="100%"
+              className="flex-1 flex flex-col"
+              minHeight="400px"
             />
           </div>
         </div>

@@ -42,4 +42,45 @@ export const searchUsers = async (query) => {
   }
 };
 
+// Notification functions
+export const getNotifications = async (page = 1, limit = 20, filter = 'all') => {
+  try {
+    const response = await api.get(`/notifications?page=${page}&limit=${limit}&filter=${filter}`);
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching notifications:', error);
+    throw error;
+  }
+};
+
+export const getUnreadNotificationCount = async () => {
+  try {
+    const response = await api.get('/notifications?limit=1&filter=unread');
+    return response.data.pagination?.unreadCount || 0;
+  } catch (error) {
+    console.error('Error fetching unread notification count:', error);
+    return 0;
+  }
+};
+
+export const markNotificationAsRead = async (notificationId) => {
+  try {
+    const response = await api.patch(`/notifications/${notificationId}/read`);
+    return response.data;
+  } catch (error) {
+    console.error('Error marking notification as read:', error);
+    throw error;
+  }
+};
+
+export const markAllNotificationsAsRead = async () => {
+  try {
+    const response = await api.patch('/notifications/read-all');
+    return response.data;
+  } catch (error) {
+    console.error('Error marking all notifications as read:', error);
+    throw error;
+  }
+};
+
 export default api;

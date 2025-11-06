@@ -35,6 +35,20 @@ const Notifications = () => {
     }
   }, [user, filter]);
 
+  // Mark all notifications as read when component mounts
+  useEffect(() => {
+    if (user && notifications.length > 0) {
+      const unreadNotifications = notifications.filter(notif => !notif.read);
+      if (unreadNotifications.length > 0) {
+        // Mark all as read after a short delay to improve user experience
+        const timer = setTimeout(() => {
+          markAllAsRead();
+        }, 1500);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [notifications, user]);
+
   const fetchNotifications = async (pageNum = 1, reset = true) => {
     try {
       const response = await api.get(`/notifications?page=${pageNum}&filter=${filter}&limit=20`);
@@ -78,6 +92,9 @@ const Notifications = () => {
             : notif
         )
       );
+      
+      // Trigger notification update event
+      window.dispatchEvent(new Event('notificationUpdate'));
     } catch (error) {
       toast.error('Failed to mark as read');
     }
@@ -89,6 +106,10 @@ const Notifications = () => {
       setNotifications(prev => 
         prev.map(notif => ({ ...notif, read: true }))
       );
+      
+      // Trigger notification update event
+      window.dispatchEvent(new Event('notificationUpdate'));
+      
       toast.success('All notifications marked as read');
     } catch (error) {
       toast.error('Failed to mark all as read');

@@ -13,6 +13,11 @@ import {
   Trash2,
   Send,
   BookOpen,
+  Maximize,
+  Minimize,
+  X,
+  Sun,
+  Moon,
 } from "lucide-react";
 import Navbar from "../components/Navbar";
 import { toast } from "react-toastify";
@@ -38,6 +43,8 @@ const StoryDetail = () => {
   const [showEditChapter, setShowEditChapter] = useState(false);
   const [editingChapter, setEditingChapter] = useState(null);
   const [deleting, setDeleting] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(true); // Default to dark mode for reading
 
   useEffect(() => {
     const loadData = async () => {
@@ -145,18 +152,52 @@ const StoryDetail = () => {
     }
   };
 
-  const handleDeleteChapter = async (id) => {
-    if (!window.confirm("Delete this chapter?")) return;
-    try {
-      await api.delete(`/chapters/${id}`);
-      setChapters(chapters.filter((c) => c._id !== id));
-      if (selectedChapter?._id === id)
-        setSelectedChapter(chapters[0] || null);
-      toast.success("Chapter deleted");
-    } catch {
-      toast.error("Failed to delete chapter");
+    const handleDeleteChapter = async (chapterId) => {
+    if (window.confirm('Are you sure you want to delete this chapter?')) {
+      try {
+        setDeleting(true);
+        await api.delete(`/chapters/${chapterId}`);
+        setChapters(chapters.filter(ch => ch._id !== chapterId));
+        if (selectedChapter?._id === chapterId) {
+          setSelectedChapter(chapters.length > 1 ? chapters[0] : null);
+        }
+        toast.success('Chapter deleted successfully');
+      } catch (error) {
+        toast.error('Failed to delete chapter');
+      } finally {
+        setDeleting(false);
+      }
     }
   };
+
+  const toggleFullscreen = () => {
+    setIsFullscreen(!isFullscreen);
+  };
+
+  const exitFullscreen = () => {
+    setIsFullscreen(false);
+  };
+
+  // Handle ESC key to exit fullscreen
+  useEffect(() => {
+    const handleEscape = (e) => {
+      if (e.key === 'Escape' && isFullscreen) {
+        exitFullscreen();
+      }
+    };
+
+    if (isFullscreen) {
+      document.addEventListener('keydown', handleEscape);
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+
+    return () => {
+      document.removeEventListener('keydown', handleEscape);
+      document.body.style.overflow = 'unset';
+    };
+  }, [isFullscreen]);
 
   const handleAddComment = async (e) => {
     e.preventDefault();
@@ -218,6 +259,162 @@ const StoryDetail = () => {
         </div>
       </div>
     );
+
+  // Fullscreen Reading Mode
+  if (isFullscreen && selectedChapter) {
+    const themeStyles = isDarkMode
+      ? {
+          bg: "bg-gradient-to-br from-gray-900 via-slate-900 to-gray-800",
+          textPrimary: "text-gray-100",
+          textSecondary: "text-gray-300",
+          border: "border-gray-600",
+          contentBg: "bg-gray-800/50",
+          headerFooterBg: "bg-gradient-to-r from-gray-800/90 via-gray-700/90 to-gray-800/90",
+          headerFooterText: "text-gray-100",
+          headerFooterTextSecondary: "text-gray-300",
+          headerFooterBorder: "border-gray-600/30"
+        }
+      : {
+          bg: "bg-gradient-to-br from-orange-50 via-amber-50 to-yellow-50",
+          textPrimary: "text-gray-900",
+          textSecondary: "text-gray-700",
+          border: "border-orange-200",
+          contentBg: "bg-white/80",
+          headerFooterBg: "bg-gradient-to-r from-orange-100/70 via-amber-50/70 to-orange-100/70",
+          headerFooterText: "text-gray-800",
+          headerFooterTextSecondary: "text-gray-600",
+          headerFooterBorder: "border-orange-200/30"
+        };
+
+    return (
+      <div className={`fixed inset-0 ${themeStyles.bg} z-50 overflow-y-auto`}>
+        <div className="min-h-screen">
+          {/* Non-sticky Header */}
+          <div className={`${themeStyles.headerFooterBg} shadow-lg p-4 border-b ${themeStyles.headerFooterBorder} backdrop-blur-sm`}>
+            <div className="flex items-center justify-between max-w-5xl mx-auto">
+              <div className="flex-1 min-w-0">
+                <h1 className={`text-lg sm:text-xl font-bold ${themeStyles.headerFooterText} truncate mb-1`}>
+                  {selectedChapter.title}
+                </h1>
+                <div className={`flex items-center gap-3 ${themeStyles.headerFooterTextSecondary} text-sm`}>
+                  <span className="truncate">{story.title}</span>
+                  <span className="hidden sm:inline">•</span>
+                  <span className="hidden sm:inline">
+                    Chapter {chapters.findIndex(ch => ch._id === selectedChapter._id) + 1} of {chapters.length}
+                  </span>
+                  <span className="hidden sm:inline">•</span>
+                  <span className="hidden sm:inline">
+                    {Math.ceil((selectedChapter.content?.length || 0) / 1000)} min
+                  </span>
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-2 ml-4">
+                {/* Theme Toggle */}
+                <button
+                  onClick={() => setIsDarkMode(!isDarkMode)}
+                  className={`p-2.5 ${isDarkMode ? 'hover:bg-gray-600/30' : 'hover:bg-orange-200/30'} rounded-lg transition-colors ${themeStyles.headerFooterText}`}
+                  title={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
+                >
+                  {isDarkMode ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+                </button>
+
+                {/* Chapter Navigation */}
+                {chapters.length > 1 && (
+                  <>
+                    <button
+                      onClick={() => {
+                        const currentIndex = chapters.findIndex(ch => ch._id === selectedChapter._id);
+                        if (currentIndex > 0) setSelectedChapter(chapters[currentIndex - 1]);
+                      }}
+                      disabled={chapters.findIndex(ch => ch._id === selectedChapter._id) === 0}
+                      className={`p-2.5 ${isDarkMode ? 'hover:bg-gray-600/30' : 'hover:bg-orange-200/30'} rounded-lg transition-colors ${themeStyles.headerFooterText} disabled:opacity-50 disabled:cursor-not-allowed`}
+                      title="Previous Chapter"
+                    >
+                      <ArrowLeft className="h-4 w-4" />
+                    </button>
+                    
+                    <button
+                      onClick={() => {
+                        const currentIndex = chapters.findIndex(ch => ch._id === selectedChapter._id);
+                        if (currentIndex < chapters.length - 1) setSelectedChapter(chapters[currentIndex + 1]);
+                      }}
+                      disabled={chapters.findIndex(ch => ch._id === selectedChapter._id) === chapters.length - 1}
+                      className={`p-2.5 ${isDarkMode ? 'hover:bg-gray-600/30' : 'hover:bg-orange-200/30'} rounded-lg transition-colors ${themeStyles.headerFooterText} disabled:opacity-50 disabled:cursor-not-allowed`}
+                      title="Next Chapter"
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </button>
+                  </>
+                )}
+                
+                {/* Exit Fullscreen */}
+                <button
+                  onClick={exitFullscreen}
+                  className={`p-2.5 ${isDarkMode ? 'hover:bg-gray-600/30' : 'hover:bg-orange-200/30'} rounded-lg transition-colors ${themeStyles.headerFooterText}`}
+                  title="Exit Fullscreen (ESC)"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Content Area */}
+          <div className="max-w-4xl mx-auto p-6 sm:p-8 lg:p-12">
+            <div className={`${themeStyles.contentBg} rounded-2xl p-6 sm:p-8 lg:p-12 shadow-2xl backdrop-blur-sm border ${themeStyles.border}`}>
+              <div
+                className={`prose prose-lg sm:prose-xl max-w-none fullscreen-reading story-content ${isDarkMode ? 'prose-invert' : ''}`}
+                style={{
+                  fontSize: '19px',
+                  lineHeight: '1.85',
+                  fontFamily: "'Playfair Display', serif"
+                }}
+                dangerouslySetInnerHTML={{ __html: selectedChapter.content }}
+              />
+            </div>
+          </div>
+
+          {/* Non-sticky Bottom Navigation */}
+          {chapters.length > 1 && (
+            <div className={`${themeStyles.headerFooterBg} p-4 border-t ${themeStyles.headerFooterBorder} backdrop-blur-sm`}>
+              <div className="flex justify-between items-center max-w-4xl mx-auto gap-4">
+                <button
+                  onClick={() => {
+                    const currentIndex = chapters.findIndex(ch => ch._id === selectedChapter._id);
+                    if (currentIndex > 0) setSelectedChapter(chapters[currentIndex - 1]);
+                  }}
+                  disabled={chapters.findIndex(ch => ch._id === selectedChapter._id) === 0}
+                  className={`flex items-center gap-2 px-4 py-3 ${isDarkMode ? 'bg-gray-700/40 hover:bg-gray-700/60' : 'bg-orange-200/40 hover:bg-orange-200/60'} ${themeStyles.headerFooterText} rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed font-medium backdrop-blur-sm`}
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                  <span className="hidden sm:inline">Previous Chapter</span>
+                  <span className="sm:hidden">Previous</span>
+                </button>
+                
+                <div className={`${themeStyles.headerFooterText} text-sm font-medium text-center`}>
+                  Chapter {chapters.findIndex(ch => ch._id === selectedChapter._id) + 1} of {chapters.length}
+                </div>
+                
+                <button
+                  onClick={() => {
+                    const currentIndex = chapters.findIndex(ch => ch._id === selectedChapter._id);
+                    if (currentIndex < chapters.length - 1) setSelectedChapter(chapters[currentIndex + 1]);
+                  }}
+                  disabled={chapters.findIndex(ch => ch._id === selectedChapter._id) === chapters.length - 1}
+                  className={`flex items-center gap-2 px-4 py-3 ${isDarkMode ? 'bg-gray-700/40 hover:bg-gray-700/60' : 'bg-orange-200/40 hover:bg-orange-200/60'} ${themeStyles.headerFooterText} rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed font-medium backdrop-blur-sm`}
+                >
+                  <span className="hidden sm:inline">Next Chapter</span>
+                  <span className="sm:hidden">Next</span>
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   if (!story)
     return (
@@ -481,18 +678,30 @@ const StoryDetail = () => {
               <div className="bg-white/90 backdrop-blur-sm rounded-xl shadow-lg border border-orange-200/30 overflow-hidden mb-4 lg:mb-6">
                 {/* Compact Chapter Header */}
                 <div className="bg-gradient-to-r from-orange-500 to-amber-500 px-3 sm:px-4 lg:px-6 py-3 sm:py-4">
-                  <h2 className="text-base sm:text-lg lg:text-xl font-bold text-white mb-1">
-                    {selectedChapter.title}
-                  </h2>
-                  <div className="flex items-center gap-3 text-orange-100 text-xs">
-                    <div className="flex items-center gap-1">
-                      <Clock className="h-3 w-3" />
-                      <span>{Math.ceil((selectedChapter.content?.length || 0) / 1000)} min</span>
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <h2 className="text-base sm:text-lg lg:text-xl font-bold text-white mb-1">
+                        {selectedChapter.title}
+                      </h2>
+                      <div className="flex items-center gap-3 text-orange-100 text-xs">
+                        <div className="flex items-center gap-1">
+                          <Clock className="h-3 w-3" />
+                          <span>{Math.ceil((selectedChapter.content?.length || 0) / 1000)} min</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <BookOpen className="h-3 w-3" />
+                          <span>Chapter {selectedChapter.chapterNumber || chapters.findIndex(ch => ch._id === selectedChapter._id) + 1}</span>
+                        </div>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-1">
-                      <BookOpen className="h-3 w-3" />
-                      <span>Chapter {selectedChapter.chapterNumber || chapters.findIndex(ch => ch._id === selectedChapter._id) + 1}</span>
-                    </div>
+                    {/* Fullscreen Button */}
+                    <button
+                      onClick={toggleFullscreen}
+                      className="p-2 hover:bg-white/20 rounded-lg transition-colors text-white"
+                      title="Read in fullscreen"
+                    >
+                      <Maximize className="h-4 w-4" />
+                    </button>
                   </div>
                 </div>
 

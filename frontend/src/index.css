@@ -14,10 +14,116 @@ body {
 
 .rich-text-editor {
   min-height: 400px;
+  display: flex;
+  flex-direction: column;
 }
 
 .rich-text-editor:focus {
   outline: none;
+}
+
+/* Ensure contentEditable divs can scroll properly */
+.rich-text-editor [contenteditable="true"] {
+  overflow-y: auto;
+  max-height: 60vh;
+}
+
+/* Enhanced Fullscreen Reading Styles */
+.fullscreen-reading {
+  font-feature-settings: "kern" 1, "liga" 1;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.fullscreen-reading p {
+  margin-bottom: 1.75rem;
+  line-height: 1.85;
+  text-align: justify;
+  text-indent: 1.5rem;
+}
+
+.fullscreen-reading h1, 
+.fullscreen-reading h2, 
+.fullscreen-reading h3,
+.fullscreen-reading h4,
+.fullscreen-reading h5,
+.fullscreen-reading h6 {
+  font-family: 'Playfair Display', serif;
+  font-weight: 700;
+  margin-top: 3rem;
+  margin-bottom: 1.5rem;
+  text-align: center;
+}
+
+.fullscreen-reading blockquote {
+  font-style: italic;
+  margin: 2rem 0;
+  padding-left: 2rem;
+  font-size: 1.1em;
+  line-height: 1.7;
+}
+
+.fullscreen-reading strong {
+  font-weight: 600;
+}
+
+.fullscreen-reading em {
+  font-style: italic;
+}
+
+/* Dark mode specific styles */
+.prose-invert.fullscreen-reading {
+  color: #f1f5f9;
+}
+
+.prose-invert.fullscreen-reading h1,
+.prose-invert.fullscreen-reading h2,
+.prose-invert.fullscreen-reading h3,
+.prose-invert.fullscreen-reading h4,
+.prose-invert.fullscreen-reading h5,
+.prose-invert.fullscreen-reading h6 {
+  color: #fbbf24;
+}
+
+.prose-invert.fullscreen-reading blockquote {
+  border-left: 4px solid #f59e0b;
+  color: #e2e8f0;
+}
+
+.prose-invert.fullscreen-reading strong {
+  color: #fde047;
+}
+
+.prose-invert.fullscreen-reading em {
+  color: #fcd34d;
+}
+
+/* Light mode specific styles */
+.fullscreen-reading:not(.prose-invert) {
+  color: #1f2937;
+}
+
+.fullscreen-reading:not(.prose-invert) h1,
+.fullscreen-reading:not(.prose-invert) h2,
+.fullscreen-reading:not(.prose-invert) h3,
+.fullscreen-reading:not(.prose-invert) h4,
+.fullscreen-reading:not(.prose-invert) h5,
+.fullscreen-reading:not(.prose-invert) h6 {
+  color: #ea580c;
+}
+
+.fullscreen-reading:not(.prose-invert) blockquote {
+  border-left: 4px solid #fb923c;
+  color: #6b7280;
+}
+
+.fullscreen-reading:not(.prose-invert) strong {
+  color: #dc2626;
+}
+
+.fullscreen-reading:not(.prose-invert) em {
+  color: #d97706;
 }
 
 /* Custom utilities */

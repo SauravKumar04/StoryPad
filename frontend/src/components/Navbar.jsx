@@ -18,11 +18,13 @@ import {
   ChevronDown
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { getUnreadNotificationCount } from '../utils/api';
 
 const Navbar = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -35,6 +37,27 @@ const Navbar = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  // Fetch unread notification count
+  useEffect(() => {
+    const fetchUnreadCount = async () => {
+      if (user) {
+        try {
+          const count = await getUnreadNotificationCount();
+          setUnreadCount(count);
+        } catch (error) {
+          console.error('Error fetching unread notification count:', error);
+        }
+      }
+    };
+
+    fetchUnreadCount();
+    
+    // Refresh count every 30 seconds
+    const interval = setInterval(fetchUnreadCount, 30000);
+    
+    return () => clearInterval(interval);
+  }, [user]);
+
   const handleLogout = () => {
     logout();
     navigate('/');
@@ -42,6 +65,31 @@ const Navbar = () => {
   };
 
   const isActive = (path) => location.pathname === path;
+
+  // Reset unread count when visiting notifications page
+  useEffect(() => {
+    if (location.pathname === '/notifications') {
+      // Small delay to allow notifications to be marked as read
+      const timer = setTimeout(() => {
+        setUnreadCount(0);
+      }, 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [location.pathname]);
+
+  // Listen for notification updates
+  useEffect(() => {
+    const handleNotificationUpdate = () => {
+      if (user) {
+        getUnreadNotificationCount().then(count => {
+          setUnreadCount(count);
+        }).catch(console.error);
+      }
+    };
+
+    window.addEventListener('notificationUpdate', handleNotificationUpdate);
+    return () => window.removeEventListener('notificationUpdate', handleNotificationUpdate);
+  }, [user]);
 
   const navItems = [
     { path: '/feed', icon: Home, label: 'Home' },
@@ -77,14 +125,22 @@ const Navbar = () => {
               <Link
                 key={path}
                 to={path}
-                className={`flex items-center space-x-2 px-3 lg:px-4 py-2 lg:py-2.5 rounded-full text-sm font-medium transition-all ${
+                className={`relative flex items-center space-x-2 px-3 lg:px-4 py-2 lg:py-2.5 rounded-full text-sm font-medium transition-all ${
                   isActive(path)
                     ? 'bg-orange-500 text-white shadow-lg'
                     : 'text-gray-600 hover:text-orange-600 hover:bg-orange-50'
                 }`}
                 title={label}
               >
-                <Icon className="h-4 w-4 lg:h-5 lg:w-5" />
+                <div className="relative">
+                  <Icon className="h-4 w-4 lg:h-5 lg:w-5" />
+                  {/* Notification Badge */}
+                  {path === '/notifications' && unreadCount > 0 && (
+                    <div className="absolute -top-1 -right-1 bg-gradient-to-r from-orange-500 to-red-500 text-white text-xs font-bold rounded-full h-4 w-4 flex items-center justify-center shadow-lg animate-pulse">
+                      {unreadCount > 99 ? '99+' : unreadCount}
+                    </div>
+                  )}
+                </div>
                 <span className="hidden lg:inline">{label}</span>
               </Link>
             ))}
@@ -232,8 +288,24 @@ const Navbar = () => {
                   }`}
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
-                  <Icon className="h-5 w-5" />
-                  <span>{label}</span>
+                  <div className="relative">
+                    <Icon className="h-5 w-5" />
+                    {/* Mobile Notification Badge */}
+                    {path === '/notifications' && unreadCount > 0 && (
+                      <div className="absolute -top-1 -right-1 bg-gradient-to-r from-orange-500 to-red-500 text-white text-xs font-bold rounded-full h-4 w-4 flex items-center justify-center shadow-lg animate-pulse">
+                        {unreadCount > 99 ? '99+' : unreadCount}
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex items-center justify-between flex-1">
+                    <span>{label}</span>
+                    {/* Alternative badge position for mobile */}
+                    {path === '/notifications' && unreadCount > 0 && (
+                      <div className="bg-gradient-to-r from-orange-500 to-red-500 text-white text-xs font-bold rounded-full px-2 py-1 shadow-sm">
+                        {unreadCount > 99 ? '99+' : unreadCount}
+                      </div>
+                    )}
+                  </div>
                 </Link>
               ))}
 
