@@ -71,8 +71,9 @@ const Profile = () => {
         return;
       }
       
-      const response = await api.get('/stories');
-      const userStories = response.data.filter(story => story.author._id === userId);
+      // Use the new user-specific stories endpoint
+      const response = await api.get(`/users/${userId}/stories`);
+      const userStories = response.data;
       
       // Fetch chapter data for each story
       const storiesWithChapters = await Promise.all(
@@ -527,7 +528,9 @@ const Profile = () => {
                   <BookOpen className="h-3 w-3 sm:h-4 sm:w-4" />
                 </div>
                 <span className="text-xs sm:text-sm">
-                  <span className="hidden sm:inline">My Stories ({getUserStats().stories})</span>
+                  <span className="hidden sm:inline">
+                    {isOwnProfile ? 'My Stories' : `${user?.username}'s Stories`} ({getUserStats().stories})
+                  </span>
                   <span className="sm:hidden">Stories ({getUserStats().stories})</span>
                 </span>
               </button>

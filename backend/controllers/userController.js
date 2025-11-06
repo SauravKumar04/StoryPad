@@ -308,3 +308,22 @@ export const deleteAccount = async (req, res) => {
     res.status(500).json({ message: 'Something went wrong' });
   }
 };
+
+export const getUserStories = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    
+    // Find all published stories by this user
+    const stories = await Story.find({ 
+      author: userId, 
+      isPublished: true 
+    })
+    .populate('author', 'username profilePicture')
+    .sort({ createdAt: -1 });
+
+    res.json(stories);
+  } catch (error) {
+    console.error('Error fetching user stories:', error);
+    res.status(500).json({ message: 'Something went wrong' });
+  }
+};

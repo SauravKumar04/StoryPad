@@ -8,7 +8,8 @@ import {
   uploadAvatar,
   removeAvatar,
   updatePreferences,
-  deleteAccount 
+  deleteAccount,
+  getUserStories 
 } from '../controllers/userController.js';
 import auth from '../middleware/auth.js';
 import upload from '../config/cloudinary.js';
@@ -17,6 +18,7 @@ const router = express.Router();
 
 router.get('/following', auth, getFollowing);
 router.get('/:userId', getProfile);
+router.get('/:userId/stories', getUserStories);
 router.post('/:userId/follow', auth, followUser);
 router.put('/profile', auth, updateProfile);
 router.put('/password', auth, updatePassword);
