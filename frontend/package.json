@@ -1,8 +1,12 @@
 {
-  "name": "frontend",
+  "name": "storypad-frontend",
+  "displayName": "StoryPad - Where Stories Begin",
+  "description": "Frontend for StoryPad - A creative storytelling platform where writers share stories and connect with readers",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "module",
+  "keywords": ["storytelling", "writing", "creative", "social", "platform", "stories", "authors", "readers"],
+  "author": "StoryPad Team",
   "scripts": {
     "dev": "vite",
     "build": "vite build",

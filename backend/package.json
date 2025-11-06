@@ -1,7 +1,7 @@
 {
-  "name": "backend",
+  "name": "storypad-backend",
   "version": "1.0.0",
-  "description": "StoryPad Backend API",
+  "description": "StoryPad Backend API - Server for creative storytelling platform",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
@@ -10,10 +10,18 @@
   },
   "keywords": [
     "storytelling",
-    "wattpad",
-    "social"
+    "writing",
+    "creative",
+    "social",
+    "platform",
+    "api",
+    "backend",
+    "stories",
+    "authors",
+    "readers",
+    "community"
   ],
-  "author": "",
+  "author": "StoryPad Team <team@storypad.com>",
   "license": "ISC",
   "type": "module",
   "dependencies": {
