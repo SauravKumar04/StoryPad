@@ -1,0 +1,20 @@
+User-agent: *
+Allow: /
+
+# Sitemap
+Sitemap: https://storypad.com/sitemap.xml
+
+# Crawl-delay
+Crawl-delay: 1
+
+# Disallow private areas
+Disallow: /api/
+Disallow: /settings/
+Disallow: /admin/
+
+# Allow public content
+Allow: /
+Allow: /stories/
+Allow: /authors/
+Allow: /feed/
+Allow: /about/

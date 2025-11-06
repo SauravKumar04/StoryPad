@@ -1,0 +1,22 @@
+<svg width="192" height="192" viewBox="0 0 192 192" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#f97316;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#ea580c;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  <!-- Background circle -->
+  <circle cx="96" cy="96" r="96" fill="url(#gradient)"/>
+  <!-- Book icon -->
+  <path d="M48 36c0-6.6 5.4-12 12-12h48c6.6 0 12 5.4 12 12v12H48V36z" fill="white" opacity="0.9"/>
+  <path d="M48 48h72v96c0 6.6-5.4 12-12 12H60c-6.6 0-12-5.4-12-12V48z" fill="white"/>
+  <path d="M48 48v96l36-12 36 12V48H48z" fill="url(#gradient)" opacity="0.3"/>
+  <!-- Heart for stories -->
+  <path d="M96 75c-6-9-18-9-24 0s-6 18 24 30c30-12 30-21 24-30s-18-9-24 0z" fill="#dc2626"/>
+  <!-- Sparkle effects -->
+  <circle cx="144" cy="48" r="6" fill="white" opacity="0.8"/>
+  <circle cx="36" cy="144" r="4.8" fill="white" opacity="0.6"/>
+  <circle cx="156" cy="144" r="3.6" fill="white" opacity="0.7"/>
+  <circle cx="36" cy="60" r="3" fill="white" opacity="0.5"/>
+  <circle cx="156" cy="60" r="2.4" fill="white" opacity="0.6"/>
+</svg>
