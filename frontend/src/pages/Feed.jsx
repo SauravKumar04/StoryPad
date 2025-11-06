@@ -22,7 +22,7 @@ import { io } from 'socket.io-client';
 import Navbar from '../components/Navbar';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-toastify';
-import api from '../utils/api';
+import api, { searchUsers } from '../utils/api';
 
 const Feed = () => {
   const [stories, setStories] = useState([]);
@@ -35,6 +35,13 @@ const Feed = () => {
   const [followedUsers, setFollowedUsers] = useState(new Set());
   const [bookmarkedStories, setBookmarkedStories] = useState(new Set());
   const [likedStories, setLikedStories] = useState(new Set());
+  
+  // Search related state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [showSearchResults, setShowSearchResults] = useState(false);
+  
   const { user } = useAuth();
   const navigate = useNavigate();
 
@@ -310,6 +317,53 @@ const Feed = () => {
     navigate(`/story/${story._id}`);
   };
 
+  // Search functionality
+  const handleSearchChange = async (e) => {
+    const query = e.target.value;
+    setSearchQuery(query);
+
+    if (query.trim().length === 0) {
+      setSearchResults([]);
+      setShowSearchResults(false);
+      return;
+    }
+
+    if (query.trim().length < 2) {
+      return; // Don't search for single characters
+    }
+
+    setSearchLoading(true);
+    try {
+      const results = await searchUsers(query);
+      setSearchResults(results);
+      setShowSearchResults(true);
+    } catch (error) {
+      console.error('Search error:', error);
+      toast.error('Search failed. Please try again.');
+    } finally {
+      setSearchLoading(false);
+    }
+  };
+
+  const handleUserClick = (userId) => {
+    navigate(`/profile/${userId}`);
+    setShowSearchResults(false);
+    setSearchQuery('');
+  };
+
+  const handleSearchFocus = () => {
+    if (searchResults.length > 0) {
+      setShowSearchResults(true);
+    }
+  };
+
+  const handleSearchBlur = () => {
+    // Delay hiding to allow click events on results
+    setTimeout(() => {
+      setShowSearchResults(false);
+    }, 200);
+  };
+
 
 
   if (loading) {
@@ -346,37 +400,162 @@ const Feed = () => {
     <div className="min-h-screen bg-gray-50">
       <Navbar />
       
-      {/* Minimal Premium Hero Section */}
-      <div className="bg-white border-b border-gray-100">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-20 lg:py-24">
-          <div className="text-center">
-            {/* Rich Heading */}
-            <h1 className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-black text-gray-900 leading-tight mb-6">
-              <span className="bg-gradient-to-r from-orange-600 to-amber-600 bg-clip-text text-transparent">
-                Discover
-              </span>
-              <br />
-              Stories
-            </h1>
+      {/* Compact Enhanced Hero Section */}
+      <div className="bg-gradient-to-br from-white via-orange-50/30 to-amber-50/40 border-b border-gray-100">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10 lg:py-12 relative">
+          {/* Subtle Background Pattern */}
+          <div className="absolute inset-0 opacity-5">
+            <div className="absolute top-10 left-20 w-24 h-24 bg-orange-500 rounded-full blur-3xl"></div>
+            <div className="absolute bottom-10 right-20 w-32 h-32 bg-amber-500 rounded-full blur-3xl"></div>
+          </div>
+          
+          <div className="text-center relative z-10">
+            {/* Compact Rich Heading */}
+            <div className="mb-4">
+              <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-black text-gray-900 leading-tight mb-2">
+                <span className="bg-gradient-to-r from-orange-600 via-orange-500 to-amber-600 bg-clip-text text-transparent drop-shadow-sm">
+                  Discover
+                </span>
+                <br />
+                <span className="text-gray-800">Stories</span>
+              </h1>
+              <div className="w-20 h-0.5 bg-gradient-to-r from-orange-500 to-amber-500 rounded-full mx-auto mt-2 opacity-80"></div>
+            </div>
             
-            {/* Clean Description */}
-            <div className="max-w-2xl mx-auto mb-8">
-              <p className="text-xl sm:text-2xl text-gray-600 leading-relaxed mb-4">
+            {/* Compact Description */}
+            <div className="max-w-2xl mx-auto mb-6">
+              <p className="text-lg sm:text-xl text-gray-700 leading-relaxed mb-4 font-light">
                 Where millions of readers find their next favorite story
               </p>
-              <div className="flex items-center justify-center space-x-6 text-gray-500">
-                <div className="flex items-center space-x-2">
-                  <BookOpen className="w-5 h-5 text-orange-500" />
-                  <span className="text-sm font-medium">Read</span>
+              
+              {/* Compact Feature Icons */}
+              <div className="flex items-center justify-center gap-6 sm:gap-8 text-gray-600 mb-6">
+                <div className="flex items-center space-x-1.5 group">
+                  <div className="p-2 rounded-full bg-orange-100 group-hover:bg-orange-200 transition-colors duration-200">
+                    <BookOpen className="w-4 h-4 text-orange-600" />
+                  </div>
+                  <span className="text-xs font-semibold">Read</span>
                 </div>
-                <div className="flex items-center space-x-2">
-                  <Users className="w-5 h-5 text-orange-500" />
-                  <span className="text-sm font-medium">Connect</span>
+                <div className="flex items-center space-x-1.5 group">
+                  <div className="p-2 rounded-full bg-amber-100 group-hover:bg-amber-200 transition-colors duration-200">
+                    <Users className="w-4 h-4 text-amber-600" />
+                  </div>
+                  <span className="text-xs font-semibold">Connect</span>
                 </div>
-                <div className="flex items-center space-x-2">
-                  <Star className="w-5 h-5 text-orange-500" />
-                  <span className="text-sm font-medium">Create</span>
+                <div className="flex items-center space-x-1.5 group">
+                  <div className="p-2 rounded-full bg-orange-100 group-hover:bg-orange-200 transition-colors duration-200">
+                    <Star className="w-4 h-4 text-orange-600" />
+                  </div>
+                  <span className="text-xs font-semibold">Create</span>
                 </div>
+              </div>
+              
+              {/* Enhanced Beautiful Search Component */}
+              <div className="relative max-w-md mx-auto">
+                <div className="relative group">
+                  {/* Search Icon */}
+                  <div className="absolute left-4 top-1/2 transform -translate-y-1/2 z-10">
+                    <div className="p-1 rounded-full bg-gradient-to-r from-orange-100 to-amber-100 transition-all duration-300">
+                      <Search className="h-4 w-4 text-orange-600 transition-colors" />
+                    </div>
+                  </div>
+                  
+                  {/* Main Search Input */}
+                  <input
+                    type="text"
+                    placeholder="Discover amazing authors..."
+                    value={searchQuery}
+                    onChange={handleSearchChange}
+                    onFocus={handleSearchFocus}
+                    onBlur={handleSearchBlur}
+                    className="w-full pl-14 pr-12 py-4 text-base font-medium border-2 border-gray-200/80 rounded-2xl focus:border-gray-300 focus:ring-2 focus:ring-gray-100 focus:outline-none bg-gradient-to-r from-white via-orange-50/30 to-amber-50/30 backdrop-blur-sm shadow-lg hover:shadow-xl focus:shadow-xl transition-all duration-300 placeholder:text-gray-500 placeholder:font-normal hover:border-gray-300"
+                  />
+                  
+                  {/* Loading Spinner */}
+                  {searchLoading && (
+                    <div className="absolute right-4 top-1/2 transform -translate-y-1/2">
+                      <div className="relative">
+                        <div className="animate-spin rounded-full h-5 w-5 border-2 border-orange-200 border-t-orange-500"></div>
+                        <div className="absolute inset-0 rounded-full bg-gradient-to-r from-orange-100 to-amber-100 opacity-30"></div>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Search Enhancement Badge */}
+                  {!searchQuery && (
+                    <div className="absolute right-4 top-1/2 transform -translate-y-1/2">
+                      <div className="flex items-center space-x-1 text-xs text-gray-400 bg-gray-100/80 px-2 py-1 rounded-full">
+                        <Users className="h-3 w-3" />
+                        <span>Find</span>
+                      </div>
+                    </div>
+                  )}
+                  
+
+                </div>
+
+                {/* Compact Search Results Dropdown */}
+                {showSearchResults && (
+                  <div className="absolute top-full left-0 right-0 mt-2 bg-white/95 backdrop-blur-sm border border-orange-100 rounded-xl shadow-xl z-50 max-h-64 overflow-y-auto">
+                    {searchResults.length === 0 && !searchLoading ? (
+                      <div className="p-4 text-gray-500 text-center">
+                        <div className="w-12 h-12 mx-auto mb-3 bg-gray-100 rounded-full flex items-center justify-center">
+                          <User className="h-6 w-6 text-gray-300" />
+                        </div>
+                        <p className="text-sm font-medium text-gray-600">No authors found</p>
+                      </div>
+                    ) : (
+                      <div className="p-1">
+                        {searchResults.map((author, index) => (
+                          <button
+                            key={author._id}
+                            onClick={() => handleUserClick(author._id)}
+                            className="w-full flex items-center space-x-3 p-3 rounded-lg hover:bg-orange-50/80 transition-all duration-200 border-b border-gray-50 last:border-b-0 text-left group"
+                          >
+                            <div className="shrink-0 relative">
+                              {author.profilePicture ? (
+                                <img 
+                                  src={author.profilePicture} 
+                                  alt={author.username}
+                                  className="h-10 w-10 rounded-full object-cover ring-1 ring-orange-100 group-hover:ring-orange-200 transition-all"
+                                />
+                              ) : (
+                                <div className="h-10 w-10 rounded-full bg-gradient-to-r from-orange-400 to-amber-400 flex items-center justify-center ring-1 ring-orange-100 group-hover:ring-orange-200 transition-all">
+                                  <User className="h-5 w-5 text-white" />
+                                </div>
+                              )}
+                              {/* Online indicator for top authors */}
+                              {index < 3 && (
+                                <div className="absolute -top-0.5 -right-0.5 w-3 h-3 bg-green-400 rounded-full border-2 border-white"></div>
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center space-x-1.5">
+                                <h4 className="font-semibold text-gray-900 truncate group-hover:text-orange-600 transition-colors text-sm">@{author.username}</h4>
+                                {author.followersCount > 100 && (
+                                  <Star className="h-3 w-3 text-amber-400 fill-current" />
+                                )}
+                              </div>
+                              {author.bio && (
+                                <p className="text-xs text-gray-600 truncate mt-0.5 group-hover:text-gray-700">{author.bio}</p>
+                              )}
+                              <div className="flex items-center space-x-3 mt-1 text-xs text-gray-500">
+                                <span>{author.followersCount} followers</span>
+                                <span>•</span>
+                                <span>{author.followingCount} following</span>
+                              </div>
+                            </div>
+                            <div className="shrink-0">
+                              <div className="w-6 h-6 rounded-full bg-orange-100 group-hover:bg-orange-200 flex items-center justify-center transition-colors">
+                                <Crown className="h-3 w-3 text-orange-600" />
+                              </div>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           </div>

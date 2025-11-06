@@ -31,4 +31,15 @@ api.interceptors.response.use(
   }
 );
 
+// Search functions
+export const searchUsers = async (query) => {
+  try {
+    const response = await api.get(`/users/search?query=${encodeURIComponent(query)}`);
+    return response.data;
+  } catch (error) {
+    console.error('Error searching users:', error);
+    throw error;
+  }
+};
+
 export default api;

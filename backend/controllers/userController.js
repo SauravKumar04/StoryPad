@@ -327,3 +327,35 @@ export const getUserStories = async (req, res) => {
     res.status(500).json({ message: 'Something went wrong' });
   }
 };
+
+export const searchUsers = async (req, res) => {
+  try {
+    const { query } = req.query;
+    
+    if (!query || query.trim().length === 0) {
+      return res.status(400).json({ message: 'Search query is required' });
+    }
+
+    // Search users by username with case-insensitive regex
+    const users = await User.find({
+      username: { $regex: query.trim(), $options: 'i' }
+    })
+    .select('username profilePicture bio followers following')
+    .populate('followers', '_id')
+    .populate('following', '_id')
+    .limit(20) // Limit results to prevent overwhelming response
+    .sort({ followers: -1 }); // Sort by follower count (most popular first)
+
+    // Add additional computed fields
+    const usersWithStats = users.map(user => ({
+      ...user.toObject(),
+      followersCount: user.followers.length,
+      followingCount: user.following.length
+    }));
+
+    res.json(usersWithStats);
+  } catch (error) {
+    console.error('Error searching users:', error);
+    res.status(500).json({ message: 'Something went wrong' });
+  }
+};

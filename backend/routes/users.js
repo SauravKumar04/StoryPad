@@ -9,13 +9,15 @@ import {
   removeAvatar,
   updatePreferences,
   deleteAccount,
-  getUserStories 
+  getUserStories,
+  searchUsers 
 } from '../controllers/userController.js';
 import auth from '../middleware/auth.js';
 import upload from '../config/cloudinary.js';
 
 const router = express.Router();
 
+router.get('/search', searchUsers);
 router.get('/following', auth, getFollowing);
 router.get('/:userId', getProfile);
 router.get('/:userId/stories', getUserStories);
