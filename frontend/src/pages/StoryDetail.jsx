@@ -77,7 +77,7 @@ const StoryDetail = () => {
 
   const fetchComments = async () => {
     try {
-      const res = await api.get(`/story-comments/${storyId}`);
+      const res = await api.get(`/stories/${storyId}/comments`);
       console.log('Fetched comments:', res.data); // Debug log
       const fetchedComments = res.data.comments || res.data || [];
       setComments(Array.isArray(fetchedComments) ? fetchedComments : []);
@@ -203,7 +203,7 @@ const StoryDetail = () => {
     e.preventDefault();
     if (!newComment.trim()) return;
     try {
-      const res = await api.post(`/story-comments/${storyId}`, {
+      const res = await api.post(`/stories/${storyId}/comments`, {
         text: newComment,
       });
       console.log('Comment added:', res.data); // Debug log
