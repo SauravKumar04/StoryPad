@@ -6,6 +6,8 @@ import 'react-toastify/dist/ReactToastify.css';
 import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import ProfileRedirect from './components/ProfileRedirect';
+import ScrollToTop from './components/ScrollToTop';
+import ScrollToTopButton from './components/ScrollToTopButton';
 import Landing from './pages/Landing';
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -23,6 +25,7 @@ function App() {
   return (
     <Router>
       <AuthProvider>
+        <ScrollToTop />
         <div className="min-h-screen bg-white">
           <Routes>
             <Route path="/" element={<Landing />} />
@@ -40,6 +43,7 @@ function App() {
             <Route path="/story/:storyId/chapter/:chapterNumber" element={<ProtectedRoute><ChapterReader /></ProtectedRoute>} />
           </Routes>
           <ToastContainer position="top-right" />
+          <ScrollToTopButton />
         </div>
       </AuthProvider>
     </Router>
