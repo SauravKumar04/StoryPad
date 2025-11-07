@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import {
   ArrowLeft,
@@ -9,6 +9,10 @@ import {
   Plus,
   Edit,
   Play,
+  Pause,
+  Volume2,
+  VolumeX,
+  Music,
   ChevronRight,
   Trash2,
   Send,
@@ -45,6 +49,27 @@ const StoryDetail = () => {
   const [deleting, setDeleting] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(true); // Default to dark mode for reading
+
+  // Music player states
+  const [isMusicPlaying, setIsMusicPlaying] = useState(false);
+  const [isMusicMuted, setIsMusicMuted] = useState(false);
+  const [currentTrackIndex, setCurrentTrackIndex] = useState(0);
+  const audioRef = useRef(new Audio());
+
+  // Music tracks for ambient reading - Your uploaded audio files
+  const musicTracks = [
+    "/audio/documentary-141467.mp3",
+    "/audio/love-love-background-music-288434.mp3", 
+    "/audio/melody-of-nature-main-6672.mp3",
+    "/audio/nature-documentary-427642.mp3",
+  ];
+  
+  const trackNames = [
+    "Documentary Theme",
+    "Love Background", 
+    "Melody of Nature",
+    "Nature Documentary"
+  ];
 
   useEffect(() => {
     const loadData = async () => {
@@ -169,6 +194,57 @@ const StoryDetail = () => {
       }
     }
   };
+
+  // Music player functions
+  const toggleMusic = async () => {
+    if (isMusicPlaying) {
+      audioRef.current.pause();
+      setIsMusicPlaying(false);
+    } else {
+      setIsMusicPlaying(true);
+      await playCurrentTrack();
+    }
+  };
+
+  const playCurrentTrack = async () => {
+    try {
+      audioRef.current.src = musicTracks[currentTrackIndex];
+      audioRef.current.loop = true;
+      audioRef.current.volume = isMusicMuted ? 0 : 0.3; // 30% volume for ambient music
+      
+      await audioRef.current.load();
+      await audioRef.current.play();
+    } catch (error) {
+      console.log("Audio playback failed:", error);
+      setIsMusicPlaying(false);
+    }
+  };
+
+  const toggleMute = () => {
+    setIsMusicMuted(!isMusicMuted);
+    audioRef.current.volume = isMusicMuted ? 0.3 : 0;
+  };
+
+  const changeTrack = async () => {
+    const nextIndex = (currentTrackIndex + 1) % trackNames.length;
+    
+    // Stop current audio
+    audioRef.current.pause();
+    setCurrentTrackIndex(nextIndex);
+    
+    if (isMusicPlaying) {
+      // Start new track
+      await playCurrentTrack();
+    }
+  };
+
+  // Stop music when exiting fullscreen
+  useEffect(() => {
+    if (!isFullscreen && isMusicPlaying) {
+      audioRef.current.pause();
+      setIsMusicPlaying(false);
+    }
+  }, [isFullscreen, isMusicPlaying]);
 
   const toggleFullscreen = () => {
     setIsFullscreen(!isFullscreen);
@@ -310,6 +386,45 @@ const StoryDetail = () => {
               </div>
               
               <div className="flex items-center gap-2 ml-4">
+                {/* Music Controls */}
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1 bg-black/10 rounded-lg p-1">
+                    <button
+                      onClick={toggleMusic}
+                      className={`p-2 ${isDarkMode ? 'hover:bg-gray-600/30' : 'hover:bg-orange-200/30'} rounded-md transition-colors ${themeStyles.headerFooterText}`}
+                      title={isMusicPlaying ? "Pause Music" : "Play Ambient Music"}
+                    >
+                      {isMusicPlaying ? <Pause className="h-4 w-4" /> : <Music className="h-4 w-4" />}
+                    </button>
+                    
+                    {isMusicPlaying && (
+                      <>
+                        <button
+                          onClick={toggleMute}
+                          className={`p-2 ${isDarkMode ? 'hover:bg-gray-600/30' : 'hover:bg-orange-200/30'} rounded-md transition-colors ${themeStyles.headerFooterText}`}
+                          title={isMusicMuted ? "Unmute" : "Mute"}
+                        >
+                          {isMusicMuted ? <VolumeX className="h-3 w-3" /> : <Volume2 className="h-3 w-3" />}
+                        </button>
+                        
+                        <button
+                          onClick={changeTrack}
+                          className={`p-2 ${isDarkMode ? 'hover:bg-gray-600/30' : 'hover:bg-orange-200/30'} rounded-md transition-colors ${themeStyles.headerFooterText}`}
+                          title="Change Track"
+                        >
+                          <ChevronRight className="h-3 w-3" />
+                        </button>
+                      </>
+                    )}
+                  </div>
+                  
+                  {isMusicPlaying && (
+                    <div className={`text-xs ${themeStyles.headerFooterTextSecondary} hidden sm:block`}>
+                      {trackNames[currentTrackIndex]}
+                    </div>
+                  )}
+                </div>
+
                 {/* Theme Toggle */}
                 <button
                   onClick={() => setIsDarkMode(!isDarkMode)}
