@@ -25,28 +25,21 @@ export const setLogoutCallback = (callback) => {
   logoutCallback = callback;
 };
 
-// Add a response interceptor to handle errors
+// Add a response interceptor to handle authentication errors
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    // Only logout on 401 if it's a genuine authentication error, not network issues
+    // Handle 401 Unauthorized errors
     if (error.response?.status === 401) {
-      // Check if it's a token-related error by looking at the error message
-      const errorMessage = error.response?.data?.message?.toLowerCase() || '';
-      if (errorMessage.includes('expired') || errorMessage.includes('invalid') || errorMessage.includes('unauthorized')) {
-        // Call the logout callback from AuthContext if available
-        if (logoutCallback) {
-          logoutCallback();
-        } else {
-          // Fallback: clear localStorage and redirect
-          localStorage.removeItem('token');
-          localStorage.removeItem('user');
-          setTimeout(() => {
-            if (window.location.pathname !== '/login' && window.location.pathname !== '/register') {
-              window.location.href = '/login';
-            }
-          }, 100);
-        }
+      console.log('401 error detected, logging out user');
+      // Call the logout callback from AuthContext if available
+      if (logoutCallback) {
+        logoutCallback();
+      } else {
+        // Fallback: clear localStorage
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        console.log('Fallback: cleared localStorage');
       }
     }
     return Promise.reject(error);

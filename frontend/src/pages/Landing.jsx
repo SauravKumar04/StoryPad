@@ -1,8 +1,33 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
+import React, { useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { Heart, BookOpen, Users, Star, Sparkles, Feather, ArrowRight, Play } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
 const Landing = () => {
+  const { user, loading } = useAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    // If user is authenticated, redirect to feed
+    if (!loading && user) {
+      navigate('/feed');
+    }
+  }, [user, loading, navigate]);
+
+  // Show loading while checking auth
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-orange-500"></div>
+      </div>
+    );
+  }
+
+  // Only show landing page if user is not authenticated
+  if (user) {
+    return null; // Will redirect via useEffect
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 relative overflow-hidden">
 
