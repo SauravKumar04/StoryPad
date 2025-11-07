@@ -43,6 +43,12 @@ const Feed = () => {
   const [searchLoading, setSearchLoading] = useState(false);
   const [showSearchResults, setShowSearchResults] = useState(false);
 
+  // Story search state
+  const [storySearchQuery, setStorySearchQuery] = useState('');
+  const [storySearchResults, setStorySearchResults] = useState([]);
+  const [storySearchLoading, setStorySearchLoading] = useState(false);
+  const [showStorySearchResults, setShowStorySearchResults] = useState(false);
+
   // Premium genre sections state
   const [premiumGenres, setPremiumGenres] = useState({
     'Romance': { stories: [], rowsShown: 1, loading: false },
@@ -473,6 +479,62 @@ const Feed = () => {
     }, 200);
   };
 
+  // Story search functionality
+  const handleStorySearchChange = async (e) => {
+    const query = e.target.value;
+    setStorySearchQuery(query);
+
+    if (query.trim().length === 0) {
+      setStorySearchResults([]);
+      setShowStorySearchResults(false);
+      return;
+    }
+
+    if (query.trim().length < 2) {
+      return; // Wait for at least 2 characters
+    }
+
+    setStorySearchLoading(true);
+    try {
+      // Search through existing stories by title, description, and tags
+      const filteredStories = stories.filter(story => {
+        const searchTerm = query.toLowerCase();
+        const matchesTitle = story.title.toLowerCase().includes(searchTerm);
+        const matchesDescription = story.description?.toLowerCase().includes(searchTerm);
+        const matchesTags = story.tags?.some(tag => tag.toLowerCase().includes(searchTerm));
+        const matchesCategory = story.category?.toLowerCase().includes(searchTerm);
+        
+        return matchesTitle || matchesDescription || matchesTags || matchesCategory;
+      });
+
+      setStorySearchResults(filteredStories.slice(0, 8)); // Limit to 8 results
+      setShowStorySearchResults(true);
+    } catch (error) {
+      console.error('Story search error:', error);
+    } finally {
+      setStorySearchLoading(false);
+    }
+  };
+
+  const handleStoryClick = (storyId) => {
+    navigate(`/story/${storyId}`);
+    setShowStorySearchResults(false);
+    setStorySearchQuery('');
+  };
+
+  const handleStorySearchFocus = () => {
+    if (storySearchResults.length > 0) {
+      setShowStorySearchResults(true);
+    }
+  };
+
+  const handleStorySearchBlur = () => {
+    // Delay hiding to allow click events on results
+    setTimeout(() => {
+      setShowStorySearchResults(false);
+    }, 200);
+  };
+
 
 
   if (loading) {
@@ -672,6 +734,107 @@ const Feed = () => {
       </div>
 
       <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 xl:px-8 py-4 sm:py-6 lg:py-8">
+        {/* Story Search Section */}
+        <div className="mb-8">
+          <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-lg">
+            <div className="flex items-center space-x-3 mb-4">
+              <div className="w-10 h-10 bg-linear-to-r from-blue-500 to-indigo-500 rounded-xl flex items-center justify-center shadow-md">
+                <Search className="h-5 w-5 text-white" />
+              </div>
+              <div>
+                <h2 className="text-xl font-bold text-gray-900">Discover Stories</h2>
+                <p className="text-sm text-gray-600">Search by title, genre, or keywords</p>
+              </div>
+            </div>
+
+            {/* Story Search Input */}
+            <div className="relative">
+              <div className="relative">
+                <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Search for stories..."
+                  value={storySearchQuery}
+                  onChange={handleStorySearchChange}
+                  onFocus={handleStorySearchFocus}
+                  onBlur={handleStorySearchBlur}
+                  className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent text-gray-700 placeholder-gray-500 font-medium transition-all"
+                />
+                {storySearchLoading && (
+                  <div className="absolute right-4 top-1/2 transform -translate-y-1/2">
+                    <div className="w-5 h-5 border-2 border-orange-500 border-t-transparent rounded-full animate-spin"></div>
+                  </div>
+                )}
+              </div>
+
+              {/* Story Search Results Dropdown */}
+              {showStorySearchResults && (
+                <div className="absolute top-full left-0 right-0 mt-2 bg-white/95 backdrop-blur-sm border border-gray-200 rounded-xl shadow-xl z-50 max-h-80 overflow-y-auto">
+                  {storySearchResults.length === 0 && !storySearchLoading ? (
+                    <div className="p-6 text-center">
+                      <div className="w-12 h-12 mx-auto mb-3 bg-gray-100 rounded-full flex items-center justify-center">
+                        <BookOpen className="h-6 w-6 text-gray-300" />
+                      </div>
+                      <p className="text-sm font-medium text-gray-600">No stories found</p>
+                      <p className="text-xs text-gray-500 mt-1">Try different keywords</p>
+                    </div>
+                  ) : (
+                    <div className="p-2">
+                      {storySearchResults.map((story) => (
+                        <button
+                          key={story._id}
+                          onClick={() => handleStoryClick(story._id)}
+                          className="w-full flex items-center space-x-3 p-3 rounded-lg hover:bg-orange-50 transition-all duration-200 border-b border-gray-50 last:border-b-0 text-left group"
+                        >
+                          <div className="shrink-0 relative">
+                            {story.coverImage ? (
+                              <img 
+                                src={story.coverImage} 
+                                alt={story.title}
+                                className="h-12 w-9 rounded-lg object-cover ring-1 ring-gray-200 group-hover:ring-orange-200 transition-all"
+                              />
+                            ) : (
+                              <div className="h-12 w-9 rounded-lg bg-linear-to-br from-orange-400 to-amber-400 flex items-center justify-center ring-1 ring-gray-200 group-hover:ring-orange-200 transition-all">
+                                <BookOpen className="h-5 w-5 text-white" />
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center space-x-2 mb-1">
+                              <h4 className="font-semibold text-gray-900 truncate group-hover:text-orange-600 transition-colors text-sm">
+                                {story.title}
+                              </h4>
+                              {story.status === 'Completed' && (
+                                <span className="bg-green-100 text-green-700 px-2 py-0.5 rounded-lg text-xs font-medium">
+                                  Complete
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex items-center space-x-3 text-xs text-gray-500">
+                              <span className="font-medium">by {story.author?.username}</span>
+                              <span>•</span>
+                              <span>{story.category}</span>
+                              <span>•</span>
+                              <span>{story.reads || 0} reads</span>
+                            </div>
+                            {story.description && (
+                              <p className="text-xs text-gray-600 truncate mt-1">{story.description}</p>
+                            )}
+                          </div>
+                          <div className="shrink-0 flex items-center space-x-1">
+                            <Heart className="h-4 w-4 text-gray-400" />
+                            <span className="text-xs text-gray-500">{story.likes?.length || 0}</span>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
         {/* Featured Genre Collections */}
         <div className="mb-8">
           <div className="bg-white rounded-2xl p-5 mb-6 border border-gray-100 shadow-lg">
