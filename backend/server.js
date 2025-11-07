@@ -21,27 +21,38 @@ const app = express();
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
   cors: {
-    origin: [
-      process.env.CLIENT_URL || "http://localhost:5173",
-      "http://localhost:5174",
-      "http://localhost:5175",
-      "http://localhost:5176",
-      "http://localhost:3000"
-    ],
+    origin: process.env.NODE_ENV === 'production' 
+      ? [
+          process.env.CLIENT_URL,
+          "https://story-pad-26tm.vercel.app",
+          /.*\.vercel\.app$/
+        ]
+      : [
+          "http://localhost:5173",
+          "http://localhost:5174",
+          "http://localhost:5175",
+          "http://localhost:5176",
+          "http://localhost:3000"
+        ],
     methods: ["GET", "POST"]
   }
 });
 
 // Middleware
 app.use(cors({
-  origin: [
-    process.env.CLIENT_URL || "http://localhost:5173",
-    "http://localhost:5174", 
-    "http://localhost:5175",
-    "http://localhost:5176",
-    "http://localhost:3000",
-    "https://story-pad-26tm.vercel.app"
-  ],
+  origin: process.env.NODE_ENV === 'production' 
+    ? [
+        process.env.CLIENT_URL,
+        "https://story-pad-26tm.vercel.app",
+        /.*\.vercel\.app$/  // Allow any Vercel preview deployments
+      ]
+    : [
+        "http://localhost:5173",
+        "http://localhost:5174", 
+        "http://localhost:5175",
+        "http://localhost:5176",
+        "http://localhost:3000"
+      ],
   credentials: true
 }));
 app.use(express.json({ limit: '50mb' }));

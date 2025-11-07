@@ -59,7 +59,10 @@ const Feed = () => {
     // Socket.io for realtime updates (optional)
     let socket;
     try {
-      socket = io(import.meta.env.VITE_API_URL || 'http://localhost:3001', {
+      const socketUrl = import.meta.env.VITE_API_URL 
+        ? import.meta.env.VITE_API_URL.replace('/api', '') 
+        : 'http://localhost:3001';
+      socket = io(socketUrl, {
         timeout: 5000,
         forceNew: true
       });
@@ -376,7 +379,7 @@ const Feed = () => {
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4 sm:gap-5 lg:gap-6">
               {[...Array(12)].map((_, i) => (
                 <div key={i} className="bg-white rounded-2xl overflow-hidden shadow-sm">
-                  <div className="aspect-[3/4] bg-gray-200 animate-pulse"></div>
+                  <div className="aspect-3/4 bg-gray-200 animate-pulse"></div>
                   <div className="p-3 space-y-2">
                     <div className="h-4 bg-gray-200 rounded animate-pulse"></div>
                     <div className="flex items-center justify-between">
@@ -401,7 +404,7 @@ const Feed = () => {
       <Navbar />
       
       {/* Compact Enhanced Hero Section */}
-      <div className="bg-gradient-to-br from-white via-orange-50/30 to-amber-50/40 border-b border-gray-100">
+      <div className="bg-linear-to-br from-white via-orange-50/30 to-amber-50/40 border-b border-gray-100">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10 lg:py-12 relative">
           {/* Subtle Background Pattern */}
           <div className="absolute inset-0 opacity-5">
@@ -413,13 +416,13 @@ const Feed = () => {
             {/* Compact Rich Heading */}
             <div className="mb-4">
               <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-black text-gray-900 leading-tight mb-2">
-                <span className="bg-gradient-to-r from-orange-600 via-orange-500 to-amber-600 bg-clip-text text-transparent drop-shadow-sm">
+                <span className="bg-linear-to-r from-orange-600 via-orange-500 to-amber-600 bg-clip-text text-transparent drop-shadow-sm">
                   Discover
                 </span>
                 <br />
                 <span className="text-gray-800">Stories</span>
               </h1>
-              <div className="w-20 h-0.5 bg-gradient-to-r from-orange-500 to-amber-500 rounded-full mx-auto mt-2 opacity-80"></div>
+              <div className="w-20 h-0.5 bg-linear-to-r from-orange-500 to-amber-500 rounded-full mx-auto mt-2 opacity-80"></div>
             </div>
             
             {/* Compact Description */}
@@ -455,7 +458,7 @@ const Feed = () => {
                 <div className="relative group">
                   {/* Search Icon */}
                   <div className="absolute left-4 top-1/2 transform -translate-y-1/2 z-10">
-                    <div className="p-1 rounded-full bg-gradient-to-r from-orange-100 to-amber-100 transition-all duration-300">
+                    <div className="p-1 rounded-full bg-linear-to-r from-orange-100 to-amber-100 transition-all duration-300">
                       <Search className="h-4 w-4 text-orange-600 transition-colors" />
                     </div>
                   </div>
@@ -468,7 +471,7 @@ const Feed = () => {
                     onChange={handleSearchChange}
                     onFocus={handleSearchFocus}
                     onBlur={handleSearchBlur}
-                    className="w-full pl-14 pr-12 py-4 text-base font-medium border-2 border-gray-200/80 rounded-2xl focus:border-gray-300 focus:ring-2 focus:ring-gray-100 focus:outline-none bg-gradient-to-r from-white via-orange-50/30 to-amber-50/30 backdrop-blur-sm shadow-lg hover:shadow-xl focus:shadow-xl transition-all duration-300 placeholder:text-gray-500 placeholder:font-normal hover:border-gray-300"
+                    className="w-full pl-14 pr-12 py-4 text-base font-medium border-2 border-gray-200/80 rounded-2xl focus:border-gray-300 focus:ring-2 focus:ring-gray-100 focus:outline-none bg-linear-to-r from-white via-orange-50/30 to-amber-50/30 backdrop-blur-sm shadow-lg hover:shadow-xl focus:shadow-xl transition-all duration-300 placeholder:text-gray-500 placeholder:font-normal hover:border-gray-300"
                   />
                   
                   {/* Loading Spinner */}
@@ -476,7 +479,7 @@ const Feed = () => {
                     <div className="absolute right-4 top-1/2 transform -translate-y-1/2">
                       <div className="relative">
                         <div className="animate-spin rounded-full h-5 w-5 border-2 border-orange-200 border-t-orange-500"></div>
-                        <div className="absolute inset-0 rounded-full bg-gradient-to-r from-orange-100 to-amber-100 opacity-30"></div>
+                        <div className="absolute inset-0 rounded-full bg-linear-to-r from-orange-100 to-amber-100 opacity-30"></div>
                       </div>
                     </div>
                   )}
@@ -520,7 +523,7 @@ const Feed = () => {
                                   className="h-10 w-10 rounded-full object-cover ring-1 ring-orange-100 group-hover:ring-orange-200 transition-all"
                                 />
                               ) : (
-                                <div className="h-10 w-10 rounded-full bg-gradient-to-r from-orange-400 to-amber-400 flex items-center justify-center ring-1 ring-orange-100 group-hover:ring-orange-200 transition-all">
+                                <div className="h-10 w-10 rounded-full bg-linear-to-r from-orange-400 to-amber-400 flex items-center justify-center ring-1 ring-orange-100 group-hover:ring-orange-200 transition-all">
                                   <User className="h-5 w-5 text-white" />
                                 </div>
                               )}
@@ -603,7 +606,7 @@ const Feed = () => {
                   onClick={() => setSelectedGenre(genre)}
                   className={`flex items-center space-x-2 px-4 sm:px-6 py-2.5 sm:py-3 rounded-xl sm:rounded-2xl font-semibold text-sm sm:text-sm whitespace-nowrap transition-all ${
                     selectedGenre === genre
-                      ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-lg'
+                      ? 'bg-linear-to-r from-orange-500 to-amber-500 text-white shadow-lg'
                       : 'bg-white/80 text-gray-700 hover:bg-orange-50 hover:text-orange-600 border border-orange-200'
                   }`}
                 >
@@ -652,7 +655,7 @@ const Feed = () => {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-0">
               <div className="flex items-center space-x-2 text-xs sm:text-sm text-orange-700">
                 <Filter className="h-3 w-3 sm:h-4 sm:w-4" />
-                <span className="break-words">
+                <span className="wrap-break-word">
                   Filtered by: {selectedGenre}
                 </span>
               </div>
@@ -678,7 +681,7 @@ const Feed = () => {
                 onClick={() => navigate(`/story/${story._id}`)}
               >
                 {/* Premium Story Cover - Compact */}
-                <div className="relative aspect-[3/4] overflow-hidden bg-gray-100">
+                <div className="relative aspect-3/4 overflow-hidden bg-gray-100">
                   {story.coverImage ? (
                     <img
                       src={story.coverImage}
@@ -687,8 +690,8 @@ const Feed = () => {
                       loading="lazy"
                     />
                   ) : (
-                    <div className="w-full h-full bg-gradient-to-br from-orange-100 via-amber-50 to-red-50 flex items-center justify-center">
-                      <BookOpen className="h-12 w-12 text-orange-400" />
+                    <div className="w-full h-full bg-linear-to-br from-orange-100 via-amber-50 to-red-50 flex items-center justify-center">
+                      <BookOpen className="h-16 w-16 text-orange-400" />
                     </div>
                   )}
                   
@@ -744,7 +747,7 @@ const Feed = () => {
                         navigate(`/profile/${story.author._id}`);
                       }}
                     >
-                      <div className="w-6 h-6 bg-gradient-to-br from-orange-500 to-red-500 rounded-full flex items-center justify-center text-white font-bold text-xs shadow-sm shrink-0">
+                      <div className="w-6 h-6 bg-linear-to-br from-orange-500 to-red-500 rounded-full flex items-center justify-center text-white font-bold text-xs shadow-sm shrink-0">
                         {story.author.profilePicture ? (
                           <img 
                             src={story.author.profilePicture} 
