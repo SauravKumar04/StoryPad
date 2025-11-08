@@ -3,6 +3,41 @@ import Chapter from '../models/Chapter.js';
 import { createNotification } from './notificationController.js';
 import { io } from '../server.js';
 
+// Simple in-memory cache for stories (5 minutes TTL)
+const storiesCache = new Map();
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+const getCacheKey = (page, limit) => `stories_${page}_${limit}`;
+
+const getCachedStories = (page, limit) => {
+  const key = getCacheKey(page, limit);
+  const cached = storiesCache.get(key);
+  
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+    return cached.data;
+  }
+  
+  return null;
+};
+
+const setCachedStories = (page, limit, data) => {
+  const key = getCacheKey(page, limit);
+  storiesCache.set(key, {
+    data,
+    timestamp: Date.now()
+  });
+  
+  // Clean old cache entries to prevent memory leaks
+  if (storiesCache.size > 50) {
+    const entries = Array.from(storiesCache.entries());
+    entries.slice(0, 10).forEach(([key]) => storiesCache.delete(key));
+  }
+};
+
+const clearStoriesCache = () => {
+  storiesCache.clear();
+};
+
 export const createStory = async (req, res) => {
   try {
     const { title, description, category, tags, coverImage, chapters, targetAudience, language, status } = req.body;
@@ -48,6 +83,9 @@ export const createStory = async (req, res) => {
     
     await story.populate('author', 'username profilePicture');
     
+    // Clear cache since we added a new story
+    clearStoriesCache();
+    
     // Emit realtime update
     io.to('feed').emit('newStory', story);
     
@@ -60,12 +98,46 @@ export const createStory = async (req, res) => {
 
 export const getStories = async (req, res) => {
   try {
-    const stories = await Story.find({ isPublished: true })
-      .populate('author', 'username profilePicture')
-      .sort({ createdAt: -1 });
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 5;
+    const skip = (page - 1) * limit;
     
-    res.json(stories);
+    // Check cache first
+    const cachedData = getCachedStories(page, limit);
+    if (cachedData) {
+      return res.json(cachedData);
+    }
+    
+    // Only select necessary fields to reduce payload
+    const stories = await Story.find({ isPublished: true })
+      .select('title description coverImage author tags category targetAudience status likes reads createdAt updatedAt')
+      .populate('author', 'username profilePicture')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .lean(); // Use lean() for better performance as we don't need Mongoose document methods
+    
+    // Get total count for pagination info (cache this separately for even better performance)
+    const total = await Story.countDocuments({ isPublished: true });
+    const totalPages = Math.ceil(total / limit);
+    
+    const responseData = {
+      stories,
+      pagination: {
+        currentPage: page,
+        totalPages,
+        totalStories: total,
+        hasNext: page < totalPages,
+        hasPrev: page > 1
+      }
+    };
+    
+    // Cache the response
+    setCachedStories(page, limit, responseData);
+    
+    res.json(responseData);
   } catch (error) {
+    console.error('Error fetching stories:', error);
     res.status(500).json({ message: 'Something went wrong' });
   }
 };
@@ -147,6 +219,9 @@ export const updateStory = async (req, res) => {
     await story.save();
     await story.populate('author', 'username profilePicture');
     
+    // Clear cache since story was updated
+    clearStoriesCache();
+    
     res.json(story);
   } catch (error) {
     res.status(500).json({ message: 'Something went wrong' });
@@ -170,6 +245,9 @@ export const deleteStory = async (req, res) => {
     
     // Delete the story
     await Story.findByIdAndDelete(req.params.storyId);
+    
+    // Clear cache since story was deleted
+    clearStoriesCache();
     
     res.json({ message: 'Story and all its chapters deleted successfully' });
   } catch (error) {

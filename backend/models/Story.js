@@ -17,4 +17,11 @@ const storySchema = new mongoose.Schema({
   updatedAt: { type: Date, default: Date.now }
 });
 
+// Add indexes for better query performance
+storySchema.index({ isPublished: 1, createdAt: -1 }); // Main query for getStories
+storySchema.index({ author: 1, createdAt: -1 }); // For author-specific queries
+storySchema.index({ category: 1, isPublished: 1 }); // For category filtering
+storySchema.index({ tags: 1, isPublished: 1 }); // For tag-based searches
+storySchema.index({ reads: -1, isPublished: 1 }); // For popularity sorting
+
 export default mongoose.model('Story', storySchema);

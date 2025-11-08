@@ -29,6 +29,8 @@ const Feed = () => {
   const [featuredStories, setFeaturedStories] = useState([]);
   const [trendingStories, setTrendingStories] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [pagination, setPagination] = useState({});
   const [selectedGenre, setSelectedGenre] = useState('All');
   const [sortBy, setSortBy] = useState('popular'); // 'popular', 'recent', 'trending'
   const [showFilters, setShowFilters] = useState(false);
@@ -203,11 +205,11 @@ const Feed = () => {
     setBrowseRowsShown(prev => prev + 1);
   };
 
-  const fetchStories = async () => {
+  const fetchStories = async (page = 1, appendToExisting = false) => {
     try {
-      // Fetch stories with basic endpoint first
-      const response = await api.get('/stories');
-      let fetchedStories = response.data;
+      // Fetch stories with pagination - 5 per page, max 10 total
+      const response = await api.get(`/stories?page=${page}&limit=5`);
+      const { stories: fetchedStories, pagination } = response.data;
       
       // Process stories with computed fields
       const processedStories = fetchedStories.map(story => {
@@ -223,19 +225,26 @@ const Feed = () => {
         };
       });
       
-      setStories(processedStories);
+      // Either append or replace stories based on whether we're loading more
+      if (appendToExisting) {
+        setStories(prevStories => [...prevStories, ...processedStories]);
+      } else {
+        setStories(processedStories);
+      }
       
-      // Initialize liked stories state
-      const userLikedStories = new Set();
-      processedStories.forEach(story => {
-        if (story.likes?.some(like => like._id === user?.id)) {
-          userLikedStories.add(story._id);
-        }
-      });
-      setLikedStories(userLikedStories);
+      // Store pagination info for load more functionality
+      setPagination(pagination);
       
-      // Fetch comment counts in background after initial load (optional enhancement)
-      fetchCommentCounts(processedStories);
+      // Initialize liked stories state (only on first load)
+      if (!appendToExisting) {
+        const userLikedStories = new Set();
+        processedStories.forEach(story => {
+          if (story.likes?.some(like => like._id === user?.id)) {
+            userLikedStories.add(story._id);
+          }
+        });
+        setLikedStories(userLikedStories);
+      }
       
     } catch (error) {
       console.error('Error fetching stories:', error);
@@ -245,30 +254,17 @@ const Feed = () => {
     }
   };
 
-  // Background function to update comment counts without blocking initial load
-  const fetchCommentCounts = async (stories) => {
+  // Load more stories for infinite scroll
+  const loadMoreStories = async () => {
+    if (loadingMore || !pagination.hasNext) return;
+    
+    setLoadingMore(true);
     try {
-      const updatedStories = await Promise.all(
-        stories.map(async (story) => {
-          try {
-            // Try to get more accurate comment count
-            const commentsResponse = await api.get(`/stories/${story._id}/comments`);
-            return {
-              ...story,
-              totalComments: commentsResponse.data?.length || story.totalComments
-            };
-          } catch (error) {
-            // Keep existing comment count if API call fails
-            return story;
-          }
-        })
-      );
-      
-      // Update stories with new comment counts
-      setStories(updatedStories);
+      await fetchStories(pagination.currentPage + 1, true);
     } catch (error) {
-      console.log('Background comment count update failed:', error);
-      // Silent fail - don't disrupt user experience
+      toast.error('Failed to load more stories');
+    } finally {
+      setLoadingMore(false);
     }
   };
 
@@ -734,6 +730,129 @@ const Feed = () => {
       </div>
 
       <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 xl:px-8 py-4 sm:py-6 lg:py-8">
+        {/* Latest Stories Section */}
+        <div className="mb-8">
+          <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-lg mb-6">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 bg-linear-to-r from-orange-500 to-amber-500 rounded-xl flex items-center justify-center shadow-md">
+                  <BookOpen className="h-5 w-5 text-white" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold text-gray-900">Latest Stories</h2>
+                  <p className="text-sm text-gray-600">Fresh content from our community</p>
+                </div>
+              </div>
+              <div className="hidden sm:block">
+                <div className="bg-green-50 text-green-600 px-2.5 py-1 rounded-full font-medium text-xs">
+                  Updated
+                </div>
+              </div>
+            </div>
+
+            {/* Stories Grid */}
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4 sm:gap-5 lg:gap-6 mb-6">
+              {stories.map((story) => (
+                <Link
+                  key={story._id}
+                  to={`/story/${story._id}`}
+                  className="group bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 hover:-translate-y-1 border border-gray-200 hover:border-orange-300"
+                >
+                  {/* Story Cover */}
+                  <div className="relative aspect-3/4 overflow-hidden bg-linear-to-br from-orange-50 to-amber-50">
+                    {story.coverImage ? (
+                      <img 
+                        src={story.coverImage}
+                        alt={story.title}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-linear-to-br from-orange-100 via-amber-50 to-orange-200 flex items-center justify-center">
+                        <BookOpen className="h-8 w-8 sm:h-10 sm:w-10 text-orange-400" />
+                      </div>
+                    )}
+                    
+                    {/* Status Badge */}
+                    {story.status === 'Completed' && (
+                      <div className="absolute top-2 left-2">
+                        <div className="bg-white/90 backdrop-blur-sm text-green-700 px-2 py-1 rounded-lg text-xs font-bold shadow-sm border border-green-200">
+                          Complete
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Stats Overlay */}
+                    <div className="absolute bottom-2 right-2 bg-black/70 backdrop-blur-sm rounded-lg px-2 py-1">
+                      <div className="flex items-center space-x-2 text-white text-xs">
+                        <div className="flex items-center space-x-1">
+                          <Eye className="h-3 w-3" />
+                          <span>{story.reads || 0}</span>
+                        </div>
+                        <div className="flex items-center space-x-1">
+                          <Heart className="h-3 w-3" />
+                          <span>{story.totalLikes || 0}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Story Info */}
+                  <div className="p-3 space-y-2">
+                    <div className="flex items-start justify-between gap-2">
+                      <h3 className="font-bold text-gray-900 text-sm line-clamp-2 group-hover:text-orange-600 transition-colors">
+                        {story.title}
+                      </h3>
+                    </div>
+                    
+                    {/* Author Info */}
+                    <div className="flex items-center space-x-2 min-w-0">
+                      <div className="w-6 h-6 bg-linear-to-br from-orange-500 to-red-500 rounded-full flex items-center justify-center text-white font-bold text-xs shrink-0">
+                        {story.author.profilePicture ? (
+                          <img 
+                            src={story.author.profilePicture} 
+                            alt={story.author.username}
+                            className="w-full h-full object-cover rounded-full"
+                          />
+                        ) : (
+                          story.author.username?.[0]?.toUpperCase()
+                        )}
+                      </div>
+                      <p className="font-medium text-xs text-gray-600 truncate group-hover:text-orange-600 transition-colors">
+                        {story.author.username}
+                      </p>
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+
+            {/* Load More Button - only show for first page (max 10 stories total) */}
+            {pagination.hasNext && pagination.currentPage === 1 && (
+              <div className="flex justify-center">
+                <button
+                  onClick={loadMoreStories}
+                  disabled={loadingMore}
+                  className="px-6 py-2.5 bg-white border border-gray-200 hover:border-orange-300 text-gray-700 hover:text-orange-600 rounded-xl font-medium text-sm transition-all shadow-sm hover:shadow-md flex items-center space-x-2"
+                >
+                  {loadingMore ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-orange-500 border-t-transparent rounded-full animate-spin"></div>
+                      <span>Loading...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>Load More</span>
+                      <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded-lg text-xs font-semibold">
+                        +5
+                      </span>
+                    </>
+                  )}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+
         {/* Story Search Section */}
         <div className="mb-8">
           <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-lg">
