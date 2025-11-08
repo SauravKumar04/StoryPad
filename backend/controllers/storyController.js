@@ -101,28 +101,56 @@ export const getStories = async (req, res) => {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 5;
     const skip = (page - 1) * limit;
+    const category = req.query.category;
+    const sort = req.query.sort || 'recent';
     
-    // Check cache first
-    const cachedData = getCachedStories(page, limit);
-    if (cachedData) {
-      return res.json(cachedData);
+    // Build filter object
+    const filter = { isPublished: true };
+    if (category && category !== 'All') {
+      filter.category = category;
+    }
+    
+    // Build sort object
+    let sortOptions = {};
+    switch (sort) {
+      case 'popular':
+        sortOptions = { 'likes': -1, 'reads': -1, 'createdAt': -1 };
+        break;
+      case 'recent':
+        sortOptions = { 'createdAt': -1 };
+        break;
+      case 'trending':
+        // For trending, we'll sort by recent likes and reads
+        sortOptions = { 'reads': -1, 'likes': -1, 'updatedAt': -1 };
+        break;
+      default:
+        sortOptions = { 'createdAt': -1 };
+    }
+    
+    // Create cache key that includes filter and sort parameters
+    const cacheKey = `stories_${page}_${limit}_${category || 'all'}_${sort}`;
+    const cachedData = storiesCache.get(cacheKey);
+    
+    if (cachedData && Date.now() - cachedData.timestamp < CACHE_TTL) {
+      return res.json(cachedData.data);
     }
     
     // Only select necessary fields to reduce payload
-    const stories = await Story.find({ isPublished: true })
+    const stories = await Story.find(filter)
       .select('title description coverImage author tags category targetAudience status likes reads createdAt updatedAt')
       .populate('author', 'username profilePicture')
-      .sort({ createdAt: -1 })
+      .sort(sortOptions)
       .skip(skip)
       .limit(limit)
       .lean(); // Use lean() for better performance as we don't need Mongoose document methods
     
-    // Get total count for pagination info (cache this separately for even better performance)
-    const total = await Story.countDocuments({ isPublished: true });
+    // Get total count for pagination info with the same filter
+    const total = await Story.countDocuments(filter);
     const totalPages = Math.ceil(total / limit);
     
     const responseData = {
       stories,
+      total,
       pagination: {
         currentPage: page,
         totalPages,
@@ -132,8 +160,17 @@ export const getStories = async (req, res) => {
       }
     };
     
-    // Cache the response
-    setCachedStories(page, limit, responseData);
+    // Cache the response with the new cache key
+    storiesCache.set(cacheKey, {
+      data: responseData,
+      timestamp: Date.now()
+    });
+    
+    // Clean old cache entries to prevent memory leaks
+    if (storiesCache.size > 100) {
+      const entries = Array.from(storiesCache.entries());
+      entries.slice(0, 20).forEach(([key]) => storiesCache.delete(key));
+    }
     
     res.json(responseData);
   } catch (error) {
