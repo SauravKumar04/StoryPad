@@ -31,8 +31,14 @@ const Bookmarks = () => {
     }
   };
 
-  const handleRemoveBookmark = (storyId) => {
-    setBookmarks(prev => prev.filter(story => story._id !== storyId));
+  const handleRemoveBookmark = async (storyId) => {
+    try {
+      await api.post(`/bookmarks/${storyId}`); // Toggle bookmark (remove it)
+      setBookmarks(prev => prev.filter(story => story._id !== storyId));
+    } catch (error) {
+      console.error('Error removing bookmark:', error);
+      // Optionally show an error message to user
+    }
   };
 
   const filteredBookmarks = bookmarks.filter(story =>

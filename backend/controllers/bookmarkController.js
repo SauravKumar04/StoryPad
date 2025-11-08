@@ -49,8 +49,12 @@ export const getBookmarks = async (req, res) => {
       console.log(`Cleaned up ${orphanedBookmarks.length} orphaned bookmarks`);
     }
     
-    res.json(validBookmarks);
+    // Extract and return just the story objects
+    const stories = validBookmarks.map(bookmark => bookmark.story);
+    
+    res.json(stories);
   } catch (error) {
+    console.error('Error fetching bookmarks:', error);
     res.status(500).json({ message: 'Something went wrong' });
   }
 };
