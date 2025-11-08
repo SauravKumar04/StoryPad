@@ -55,9 +55,6 @@ const Feed = () => {
   const [storySearchLoading, setStorySearchLoading] = useState(false);
   const [showStorySearchResults, setShowStorySearchResults] = useState(false);
 
-  // Responsive grid state
-  const [storiesPerRow, setStoriesPerRow] = useState(2);
-
   // ==================== HOOKS & CONSTANTS ====================
   
   const { user } = useAuth();
@@ -71,35 +68,6 @@ const Feed = () => {
 
   // ==================== EFFECTS ====================
   
-  // Handle responsive grid calculations
-  useEffect(() => {
-    const updateStoriesPerRow = () => {
-      const newStoriesPerRow = calculateStoriesPerRow();
-      const previousStoriesPerRow = storiesPerRow;
-      setStoriesPerRow(newStoriesPerRow);
-      // Reset browse rows to 1 when screen size changes to ensure complete rows
-      setBrowseRowsShown(1);
-      
-
-    };
-
-    // Set initial value
-    updateStoriesPerRow();
-
-    // Add resize listener
-    window.addEventListener('resize', updateStoriesPerRow);
-
-    // Cleanup
-    return () => window.removeEventListener('resize', updateStoriesPerRow);
-  }, []);
-
-  // Refetch Must Watch stories when screen size category changes
-  useEffect(() => {
-    if (storiesPerRow !== 2) { // Skip initial render
-      fetchMustWatchStories();
-    }
-  }, [storiesPerRow]);
-
   useEffect(() => {
     fetchMustWatchStories();
     fetchAllStoriesForBrowse();
@@ -142,9 +110,9 @@ const Feed = () => {
 
   // ==================== UTILITY FUNCTIONS ====================
   
-  // Function to calculate stories per row based on screen size
-  const calculateStoriesPerRow = () => {
-    // This mirrors the grid system: grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6
+  // Calculate stories per row based on responsive grid classes
+  // grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6
+  const getStoriesPerRow = () => {
     if (window.innerWidth >= 1536) return 6; // 2xl
     if (window.innerWidth >= 1280) return 5; // xl
     if (window.innerWidth >= 1024) return 4; // lg
@@ -161,11 +129,10 @@ const Feed = () => {
   
   const fetchMustWatchStories = async () => {
     try {
-      // Calculate stories needed for Must Watch section:
-      // Mobile/Tablet (≤3 cols): 2 complete rows = 4 stories
-      // Desktop+ (4+ cols): 1 complete row = storiesPerRow stories  
-      const isMobile = storiesPerRow <= 3; 
-      const limit = isMobile ? 4 : storiesPerRow;
+      // Fetch enough stories for responsive display:
+      // Small screens: 4 stories (2 rows of 2)
+      // Large screens: 6 stories (1 row of 6)
+      const limit = 6;
       
       const response = await api.get(`/stories/must-watch?limit=${limit}`);
       const { stories: fetchedStories } = response.data;
@@ -225,6 +192,17 @@ const Feed = () => {
       
       setAllStories(processedStories);
       
+      // Update liked stories state with Browse by Genre stories
+      setLikedStories(prev => {
+        const newLikedStories = new Set(prev);
+        processedStories.forEach(story => {
+          if (story.likes?.some(like => like._id === user?.id)) {
+            newLikedStories.add(story._id);
+          }
+        });
+        return newLikedStories;
+      });
+      
     } catch (error) {
       console.error('Error fetching all stories for browse:', error);
     } finally {
@@ -275,20 +253,24 @@ const Feed = () => {
         });
       }
       
-      // Update stories with new like count and computed fields
-      setStories(prevStories => prevStories.map(story => 
-        story._id === storyId 
-          ? {
-              ...story,
-              likes: response.data.liked 
-                ? [...(story.likes || []), { _id: user.id }]
-                : (story.likes || []).filter(like => like._id !== user.id),
-              totalLikes: response.data.liked 
-                ? (story.totalLikes || 0) + 1
-                : Math.max((story.totalLikes || 0) - 1, 0)
-            }
-          : story
-      ));
+      // Helper function to update story with new like data
+      const updateStoryWithLike = (story) => story._id === storyId 
+        ? {
+            ...story,
+            likes: response.data.liked 
+              ? [...(story.likes || []), { _id: user.id }]
+              : (story.likes || []).filter(like => like._id !== user.id),
+            totalLikes: response.data.liked 
+              ? (story.totalLikes || 0) + 1
+              : Math.max((story.totalLikes || 0) - 1, 0)
+          }
+        : story;
+      
+      // Update stories (Must Watch section)
+      setStories(prevStories => prevStories.map(updateStoryWithLike));
+      
+      // Update allStories (Browse by Genre section)
+      setAllStories(prevAllStories => prevAllStories.map(updateStoryWithLike));
       
       // Show feedback
       if (response.data.liked) {
@@ -742,7 +724,7 @@ const Feed = () => {
       <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 xl:px-8 py-4 sm:py-6 lg:py-8">
         {/* Must Watch Section */}
         <div className="mb-8">
-          <div className="bg-linear-to-br from-white to-amber-50/30 rounded-2xl p-5 border border-amber-200/30 shadow-xl mb-6 ring-1 ring-amber-100/50">
+          <div className="bg-linear-to-br from-white to-amber-50/30 rounded-2xl p-5 border border-gray-100 shadow-xl mb-6">
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center space-x-3">
                 <div className="w-10 h-10 bg-linear-to-br from-amber-400 via-amber-500 to-orange-500 rounded-xl flex items-center justify-center shadow-lg">
@@ -762,11 +744,11 @@ const Feed = () => {
             </div>
 
             {/* Stories Grid */}
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4 sm:gap-5 lg:gap-6 mb-6">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 sm:gap-5 lg:gap-6 mb-6">
               {loading ? (
                 // Loading skeletons for Must Watch section
-                [...Array(5)].map((_, i) => (
-                  <div key={i} className="group bg-white rounded-xl overflow-hidden shadow-md border border-amber-200/50 ring-1 ring-amber-100/50 animate-pulse">
+                [...Array(6)].map((_, i) => (
+                  <div key={i} className="group bg-white rounded-xl overflow-hidden shadow-md border border-gray-100 animate-pulse">
                     <div className="relative aspect-3/4 bg-gradient-to-br from-amber-100 to-orange-100">
                       <div className="absolute top-2 left-2">
                         <div className="bg-gray-200 rounded-full px-3 py-1 h-6 w-20"></div>
@@ -786,7 +768,7 @@ const Feed = () => {
                 <Link
                   key={story._id}
                   to={`/story/${story._id}`}
-                  className="group bg-white rounded-xl overflow-hidden shadow-md hover:shadow-xl transition-all duration-300 hover:-translate-y-1 border border-amber-200/50 hover:border-amber-300 ring-1 ring-amber-100/50"
+                  className="group bg-white rounded-xl overflow-hidden shadow-md hover:shadow-xl border border-gray-100 hover:border-gray-200"
                 >
                   {/* Story Cover */}
                   <div className="relative aspect-3/4 overflow-hidden bg-linear-to-br from-orange-50 to-amber-50">
@@ -1088,7 +1070,7 @@ const Feed = () => {
               ))
             ) : filteredStories.length > 0 ? (
               (() => {
-                const currentStoriesPerRow = storiesPerRow;
+                const currentStoriesPerRow = getStoriesPerRow();
                 const storiesToShow = currentStoriesPerRow * browseRowsShown;
                 const displayedBrowseStories = filteredStories.slice(0, storiesToShow);
                 const hasMoreBrowseStories = filteredStories.length > storiesToShow;
@@ -1250,7 +1232,7 @@ const Feed = () => {
           
           {/* Load More Button for Browse Section */}
           {filteredStories.length > 0 && (() => {
-            const currentStoriesPerRow = storiesPerRow;
+            const currentStoriesPerRow = getStoriesPerRow();
             const storiesToShow = currentStoriesPerRow * browseRowsShown;
             const hasMoreBrowseStories = filteredStories.length > storiesToShow;
             
@@ -1262,7 +1244,7 @@ const Feed = () => {
                 >
                   <span>Load More</span>
                   <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded-lg text-xs font-semibold">
-                    +{Math.min(storiesPerRow, filteredStories.length - storiesToShow)}
+                    +{Math.min(currentStoriesPerRow, filteredStories.length - storiesToShow)}
                   </span>
                 </button>
               </div>
