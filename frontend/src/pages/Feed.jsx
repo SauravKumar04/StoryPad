@@ -30,13 +30,16 @@ const Feed = () => {
   const [stories, setStories] = useState([]);
   const [loading, setLoading] = useState(true);
   
-  // Browse by Genre section state - separate state for ALL stories
+  // Browse by Genre section state - paginated stories
   const [allStories, setAllStories] = useState([]);
   const [allStoriesLoading, setAllStoriesLoading] = useState(true);
   const [selectedGenre, setSelectedGenre] = useState('All');
   const [sortBy, setSortBy] = useState('popular'); // 'popular', 'recent', 'trending'
   const [showFilters, setShowFilters] = useState(false);
   const [browseRowsShown, setBrowseRowsShown] = useState(1);
+  const [loadingMoreRows, setLoadingMoreRows] = useState(false);
+  const [hasMoreStories, setHasMoreStories] = useState(true);
+  const [totalStoriesCount, setTotalStoriesCount] = useState(0);
   
   // User interaction state
   const [followedUsers, setFollowedUsers] = useState(new Set());
@@ -108,6 +111,13 @@ const Feed = () => {
     };
   }, [user]);
 
+  // Effect to refetch stories when genre or sorting changes
+  useEffect(() => {
+    if (user) {
+      fetchAllStoriesForBrowse(true); // Reset to first page when filters change
+    }
+  }, [selectedGenre, sortBy, user]);
+
   // ==================== UTILITY FUNCTIONS ====================
   
   // Calculate stories per row based on responsive grid classes
@@ -121,7 +131,15 @@ const Feed = () => {
   };
 
   // Load more rows for browse by genre section
-  const loadMoreBrowseRows = () => {
+  const loadMoreBrowseRows = async () => {
+    const currentStoriesPerRow = getStoriesPerRow();
+    const storiesNeeded = (browseRowsShown + 1) * currentStoriesPerRow;
+    
+    // If we don't have enough stories loaded, fetch more
+    if (allStories.length < storiesNeeded && hasMoreStories) {
+      await fetchMoreBrowseStories();
+    }
+    
     setBrowseRowsShown(prev => prev + 1);
   };
 
@@ -172,13 +190,24 @@ const Feed = () => {
   };
 
   // Fetch ALL stories for Browse by Genre section
-  const fetchAllStoriesForBrowse = async () => {
+  const fetchAllStoriesForBrowse = async (reset = false) => {
     try {
       setAllStoriesLoading(true);
       
-      // Fetch all stories without pagination limit
-      const response = await api.get('/stories?limit=1000'); // Get all stories
-      const { stories: fetchedStories } = response.data;
+      // Calculate how many stories to fetch initially (1 row worth)
+      const currentStoriesPerRow = getStoriesPerRow();
+      const initialLimit = currentStoriesPerRow; // Fetch 1 row initially
+      
+      // Build query parameters
+      const params = new URLSearchParams({
+        limit: initialLimit.toString(),
+        page: '1',
+        ...(selectedGenre !== 'All' && { category: selectedGenre }),
+        sort: sortBy
+      });
+      
+      const response = await api.get(`/stories?${params}`);
+      const { stories: fetchedStories, total } = response.data;
       
       // Process stories with computed fields
       const processedStories = fetchedStories.map(story => ({
@@ -191,6 +220,12 @@ const Feed = () => {
       }));
       
       setAllStories(processedStories);
+      if (reset) {
+        setBrowseRowsShown(1);
+      }
+      
+      setTotalStoriesCount(total || fetchedStories.length);
+      setHasMoreStories(fetchedStories.length === initialLimit && (total ? fetchedStories.length < total : true));
       
       // Update liked stories state with Browse by Genre stories
       setLikedStories(prev => {
@@ -204,9 +239,64 @@ const Feed = () => {
       });
       
     } catch (error) {
-      console.error('Error fetching all stories for browse:', error);
+      console.error('Error fetching stories for browse:', error);
     } finally {
       setAllStoriesLoading(false);
+    }
+  };
+
+  // Fetch more stories when load more is clicked
+  const fetchMoreBrowseStories = async () => {
+    try {
+      setLoadingMoreRows(true);
+      
+      const currentStoriesPerRow = getStoriesPerRow();
+      const currentPage = Math.ceil(allStories.length / currentStoriesPerRow) + 1;
+      const limit = currentStoriesPerRow; // Fetch one row worth of stories
+      
+      // Build query parameters
+      const params = new URLSearchParams({
+        limit: limit.toString(),
+        page: currentPage.toString(),
+        ...(selectedGenre !== 'All' && { category: selectedGenre }),
+        sort: sortBy
+      });
+      
+      const response = await api.get(`/stories?${params}`);
+      const { stories: fetchedStories, total } = response.data;
+      
+      // Process new stories
+      const processedStories = fetchedStories.map(story => ({
+        ...story,
+        totalLikes: story.likes?.length || 0,
+        hasRating: !!(story.rating && story.rating > 0),
+        rating: story.rating || 0,
+        chapterCount: story.chapters?.length || 0,
+        createdAtTimestamp: new Date(story.createdAt).getTime()
+      }));
+      
+      // Append to existing stories
+      setAllStories(prev => [...prev, ...processedStories]);
+      
+      // Update hasMoreStories based on response
+      const totalFetched = allStories.length + processedStories.length;
+      setHasMoreStories(processedStories.length === limit && (total ? totalFetched < total : true));
+      
+      // Update liked stories state
+      setLikedStories(prev => {
+        const newLikedStories = new Set(prev);
+        processedStories.forEach(story => {
+          if (story.likes?.some(like => like._id === user?.id)) {
+            newLikedStories.add(story._id);
+          }
+        });
+        return newLikedStories;
+      });
+      
+    } catch (error) {
+      console.error('Error fetching more browse stories:', error);
+    } finally {
+      setLoadingMoreRows(false);
     }
   };
 
@@ -337,40 +427,8 @@ const Feed = () => {
     return bookmarkedStories.has(storyId);
   };
 
-  // Filter and sort stories
-  const getFilteredAndSortedStories = () => {
-    let filtered = allStories; // Use allStories instead of stories
-
-    // Filter by genre
-    if (selectedGenre !== 'All') {
-      filtered = filtered.filter(story => 
-        story.category === selectedGenre
-      );
-    }
-
-    // Sort stories
-    const sortedStories = [...filtered].sort((a, b) => {
-      switch (sortBy) {
-        case 'popular':
-          // Sort by likes, then views, then rating
-          return (b.totalLikes + b.totalViews * 0.1) - (a.totalLikes + a.totalViews * 0.1);
-        case 'recent':
-          // Sort by creation date
-          return b.createdAtTimestamp - a.createdAtTimestamp;
-        case 'trending':
-          // Sort by recent activity (likes) with recency boost
-          const aScore = a.totalLikes * (Date.now() - a.createdAtTimestamp < 7 * 24 * 60 * 60 * 1000 ? 2 : 1);
-          const bScore = b.totalLikes * (Date.now() - b.createdAtTimestamp < 7 * 24 * 60 * 60 * 1000 ? 2 : 1);
-          return bScore - aScore;
-        default:
-          return 0;
-      }
-    });
-
-    return sortedStories;
-  };
-
-  const filteredStories = getFilteredAndSortedStories();
+  // Stories are already filtered and sorted from backend
+  const filteredStories = allStories;
 
   const handleCommentClick = (story, e) => {
     e.stopPropagation();
@@ -508,7 +566,7 @@ const Feed = () => {
                 </div>
               </div>
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4 sm:gap-5 lg:gap-6">
-                {[...Array(5)].map((_, i) => (
+                {[...Array(getStoriesPerRow())].map((_, i) => (
                   <div key={i} className="bg-gray-100 rounded-xl overflow-hidden">
                     <div className="aspect-3/4 bg-gray-200"></div>
                     <div className="p-3 space-y-2">
@@ -969,9 +1027,7 @@ const Feed = () => {
                 }
               };
               
-              const genreStoryCount = genre === 'All' 
-                ? allStories.length 
-                : allStories.filter(story => story.category === genre).length;
+              // No genre counts shown since we're using pagination
 
               return (
                 <button
@@ -988,7 +1044,6 @@ const Feed = () => {
                 >
                   <span className="h-4 w-4 sm:h-4 sm:w-4">{getGenreIcon()}</span>
                   <span>{genre}</span>
-                  <span className="text-xs opacity-75 hidden sm:inline">({genreStoryCount})</span>
                 </button>
               );
             })}
@@ -1052,8 +1107,8 @@ const Feed = () => {
         <div>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4 sm:gap-5 lg:gap-6">
             {allStoriesLoading ? (
-              // Loading skeleton for Browse by Genre
-              [...Array(12)].map((_, i) => (
+              // Loading skeleton for Browse by Genre - shows current row worth of skeletons
+              [...Array(getStoriesPerRow())].map((_, i) => (
                 <div key={i} className="bg-white rounded-2xl overflow-hidden shadow-sm animate-pulse">
                   <div className="aspect-3/4 bg-gray-200"></div>
                   <div className="p-3 space-y-2">
@@ -1075,7 +1130,7 @@ const Feed = () => {
                 const displayedBrowseStories = filteredStories.slice(0, storiesToShow);
                 const hasMoreBrowseStories = filteredStories.length > storiesToShow;
                 
-                return displayedBrowseStories.map((story) => (
+                const storyCards = displayedBrowseStories.map((story) => (
               <div 
                 key={story._id} 
                 className="group bg-white rounded-2xl shadow-sm hover:shadow-xl border border-gray-100 overflow-hidden cursor-pointer transition-all duration-300 hover:-translate-y-1 hover:border-orange-200"
@@ -1180,6 +1235,25 @@ const Feed = () => {
                 </div>
               </div>
                 ));
+                
+                // Add loading skeletons when fetching more rows
+                const loadingSkeletons = loadingMoreRows ? [...Array(currentStoriesPerRow)].map((_, i) => (
+                  <div key={`loading-${i}`} className="bg-white rounded-2xl overflow-hidden shadow-sm animate-pulse">
+                    <div className="aspect-3/4 bg-gray-200"></div>
+                    <div className="p-3 space-y-2">
+                      <div className="h-4 bg-gray-200 rounded"></div>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-2">
+                          <div className="w-6 h-6 bg-gray-200 rounded-full"></div>
+                          <div className="h-3 bg-gray-200 rounded w-12"></div>
+                        </div>
+                        <div className="w-12 h-6 bg-gray-200 rounded-full"></div>
+                      </div>
+                    </div>
+                  </div>
+                )) : [];
+                
+                return [...storyCards, ...loadingSkeletons];
               })()
             ) : (
               <div className="col-span-full text-center py-12 sm:py-16 lg:py-24 bg-white/80 backdrop-blur-sm rounded-2xl sm:rounded-3xl border border-orange-100/50 mx-3 sm:mx-0">
@@ -1234,18 +1308,35 @@ const Feed = () => {
           {filteredStories.length > 0 && (() => {
             const currentStoriesPerRow = getStoriesPerRow();
             const storiesToShow = currentStoriesPerRow * browseRowsShown;
-            const hasMoreBrowseStories = filteredStories.length > storiesToShow;
+            const hasMoreRowsToShow = filteredStories.length > storiesToShow;
             
-            return hasMoreBrowseStories && (
+            return (hasMoreRowsToShow || hasMoreStories) && (
               <div className="flex justify-center mt-8">
                 <button
                   onClick={loadMoreBrowseRows}
-                  className="px-6 py-2.5 bg-white border border-gray-200 hover:border-orange-300 text-gray-700 hover:text-orange-600 rounded-xl font-medium text-sm transition-all shadow-sm hover:shadow-md flex items-center space-x-2"
+                  disabled={loadingMoreRows}
+                  className="px-6 py-2.5 bg-white border border-gray-200 hover:border-orange-300 text-gray-700 hover:text-orange-600 rounded-xl font-medium text-sm transition-all shadow-sm hover:shadow-md flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <span>Load More</span>
-                  <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded-lg text-xs font-semibold">
-                    +{Math.min(currentStoriesPerRow, filteredStories.length - storiesToShow)}
-                  </span>
+                  {loadingMoreRows ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-orange-500"></div>
+                      <span>Loading...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>Load More</span>
+                      {hasMoreRowsToShow && (
+                        <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded-lg text-xs font-semibold">
+                          +{Math.min(currentStoriesPerRow, filteredStories.length - storiesToShow)}
+                        </span>
+                      )}
+                      {!hasMoreRowsToShow && hasMoreStories && (
+                        <span className="bg-orange-100 text-orange-600 px-2 py-0.5 rounded-lg text-xs font-semibold">
+                          More
+                        </span>
+                      )}
+                    </>
+                  )}
                 </button>
               </div>
             );
