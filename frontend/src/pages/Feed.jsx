@@ -617,103 +617,79 @@ const Feed = () => {
     <div className="min-h-screen bg-gray-50">
       <Navbar />
       
-      {/* Compact Enhanced Hero Section */}
-      <div className="bg-linear-to-br from-white via-orange-50/30 to-amber-50/40 border-b border-gray-100">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10 lg:py-12 relative">
-          {/* Subtle Background Pattern */}
-          <div className="absolute inset-0 opacity-5">
-            <div className="absolute top-10 left-20 w-24 h-24 bg-orange-500 rounded-full blur-3xl"></div>
-            <div className="absolute bottom-10 right-20 w-32 h-32 bg-amber-500 rounded-full blur-3xl"></div>
-          </div>
-          
-          <div className="text-center relative z-10">
-            {/* Compact Rich Heading */}
-            <div className="mb-4">
-              <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-black text-gray-900 leading-tight mb-2">
-                <span className="bg-linear-to-r from-orange-600 via-orange-500 to-amber-600 bg-clip-text text-transparent drop-shadow-sm">
-                  Discover
-                </span>
-                <br />
-                <span className="text-gray-800">Stories</span>
-              </h1>
-              <div className="w-20 h-0.5 bg-linear-to-r from-orange-500 to-amber-500 rounded-full mx-auto mt-2 opacity-80"></div>
-            </div>
-            
-            {/* Compact Description */}
-            <div className="max-w-2xl mx-auto mb-6">
-              <p className="text-lg sm:text-xl text-gray-700 leading-relaxed mb-4 font-light">
-                Where millions of readers find their next favorite story
-              </p>
-              
-              {/* Compact Feature Icons */}
-              <div className="flex items-center justify-center gap-6 sm:gap-8 text-gray-600 mb-6">
-                <div className="flex items-center space-x-1.5 group">
-                  <div className="p-2 rounded-full bg-orange-100 group-hover:bg-orange-200 transition-colors duration-200">
-                    <BookOpen className="w-4 h-4 text-orange-600" />
-                  </div>
-                  <span className="text-xs font-semibold">Read</span>
+      {/* Premium Hero Section - CreateStory Style */}
+      <div className="relative bg-white border-b border-gray-200">
+        {/* Subtle background pattern */}
+        <div className="absolute inset-0 opacity-5">
+          <div className="absolute inset-0" style={{
+            backgroundImage: `radial-gradient(circle at 25% 25%, #f97316 0%, transparent 50%), 
+                             radial-gradient(circle at 75% 75%, #ef4444 0%, transparent 50%)`
+          }}></div>
+        </div>
+        
+        <div className="relative max-w-4xl mx-auto px-4 py-12 lg:py-16 pb-20">
+          <div className="text-center">
+            {/* Premium Icon Group */}
+            <div className="flex items-center justify-center mb-8">
+              <div className="relative flex items-center space-x-4">
+                <div className="p-4 rounded-2xl bg-orange-100 border border-orange-200 backdrop-blur-sm">
+                  <BookOpen className="h-8 w-8 text-orange-600" />
                 </div>
-                <div className="flex items-center space-x-1.5 group">
-                  <div className="p-2 rounded-full bg-amber-100 group-hover:bg-amber-200 transition-colors duration-200">
-                    <Users className="w-4 h-4 text-amber-600" />
-                  </div>
-                  <span className="text-xs font-semibold">Connect</span>
+                <div className="p-3 rounded-xl bg-red-100 border border-red-200 backdrop-blur-sm">
+                  <Heart className="h-6 w-6 text-red-600" />
                 </div>
-                <div className="flex items-center space-x-1.5 group">
-                  <div className="p-2 rounded-full bg-orange-100 group-hover:bg-orange-200 transition-colors duration-200">
-                    <Star className="w-4 h-4 text-orange-600" />
-                  </div>
-                  <span className="text-xs font-semibold">Create</span>
+                <div className="p-2 rounded-lg bg-amber-100 border border-amber-200 backdrop-blur-sm">
+                  <Sparkles className="h-5 w-5 text-amber-600" />
                 </div>
               </div>
-              
-              {/* Enhanced Beautiful Search Component */}
-              <div className="relative max-w-md mx-auto">
-                <div className="relative group">
-                  {/* Search Icon */}
-                  <div className="absolute left-4 top-1/2 transform -translate-y-1/2 z-10">
-                    <div className="p-1 rounded-full bg-linear-to-r from-orange-100 to-amber-100 transition-all duration-300">
-                      <Search className="h-4 w-4 text-orange-600 transition-colors" />
+            </div>
+            
+            <h1 className="text-4xl md:text-6xl font-bold mb-6 text-gray-900">
+              Discover Amazing
+              <span className="block bg-linear-to-r from-orange-600 to-red-600 bg-clip-text text-transparent">
+                Stories
+              </span>
+            </h1>
+            
+            {/* Premium Sharp Search Bar */}
+            <div className="max-w-lg mx-auto mb-8">
+              <div className="relative">
+                {/* Sharp Search Icon */}
+                <div className="absolute left-5 top-1/2 transform -translate-y-1/2 z-10">
+                  <Search className="h-5 w-5 text-orange-600" />
+                </div>
+                
+                {/* Sharp Search Input */}
+                <input
+                  type="text"
+                  placeholder="Search for amazing authors..."
+                  value={searchQuery}
+                  onChange={handleSearchChange}
+                  onFocus={handleSearchFocus}
+                  onBlur={handleSearchBlur}
+                  className="w-full pl-14 pr-16 py-4 text-base font-semibold text-gray-900 placeholder:text-gray-500 placeholder:font-normal bg-white border-2 border-gray-200 rounded-xl focus:border-gray-400 focus:ring-0 focus:outline-none hover:border-gray-300 shadow-sm hover:shadow-md focus:shadow-lg transition-all duration-200"
+                />
+                
+                {/* Sharp Loading Spinner */}
+                {searchLoading && (
+                  <div className="absolute right-5 top-1/2 transform -translate-y-1/2">
+                    <div className="w-5 h-5 border-2 border-orange-200 border-t-orange-600 rounded-full animate-spin"></div>
+                  </div>
+                )}
+                
+                {/* Sharp Enhancement Badge */}
+                {!searchQuery && !searchLoading && (
+                  <div className="absolute right-5 top-1/2 transform -translate-y-1/2">
+                    <div className="flex items-center space-x-1.5 text-xs font-medium text-gray-400 bg-gray-50 border border-gray-200 px-2.5 py-1.5 rounded-lg">
+                      <Users className="h-3.5 w-3.5" />
+                      <span>Authors</span>
                     </div>
                   </div>
-                  
-                  {/* Main Search Input */}
-                  <input
-                    type="text"
-                    placeholder="Discover amazing authors..."
-                    value={searchQuery}
-                    onChange={handleSearchChange}
-                    onFocus={handleSearchFocus}
-                    onBlur={handleSearchBlur}
-                    className="w-full pl-14 pr-12 py-4 text-base font-medium border-2 border-gray-200/80 rounded-2xl focus:border-gray-300 focus:ring-2 focus:ring-gray-100 focus:outline-none bg-linear-to-r from-white via-orange-50/30 to-amber-50/30 backdrop-blur-sm shadow-lg hover:shadow-xl focus:shadow-xl transition-all duration-300 placeholder:text-gray-500 placeholder:font-normal hover:border-gray-300"
-                  />
-                  
-                  {/* Loading Spinner */}
-                  {searchLoading && (
-                    <div className="absolute right-4 top-1/2 transform -translate-y-1/2">
-                      <div className="relative">
-                        <div className="animate-spin rounded-full h-5 w-5 border-2 border-orange-200 border-t-orange-500"></div>
-                        <div className="absolute inset-0 rounded-full bg-linear-to-r from-orange-100 to-amber-100 opacity-30"></div>
-                      </div>
-                    </div>
-                  )}
-                  
-                  {/* Search Enhancement Badge */}
-                  {!searchQuery && (
-                    <div className="absolute right-4 top-1/2 transform -translate-y-1/2">
-                      <div className="flex items-center space-x-1 text-xs text-gray-400 bg-gray-100/80 px-2 py-1 rounded-full">
-                        <Users className="h-3 w-3" />
-                        <span>Find</span>
-                      </div>
-                    </div>
-                  )}
-                  
+                )}
 
-                </div>
-
-                {/* Compact Search Results Dropdown */}
+                {/* Search Results Dropdown - High Z-Index */}
                 {showSearchResults && (
-                  <div className="absolute top-full left-0 right-0 mt-2 bg-white/95 backdrop-blur-sm border border-orange-100 rounded-xl shadow-xl z-50 max-h-64 overflow-y-auto">
+                  <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-orange-200 rounded-xl shadow-2xl z-50 max-h-64 overflow-y-auto" style={{zIndex: 9999}}>
                     {searchResults.length === 0 && !searchLoading ? (
                       <div className="p-4 text-gray-500 text-center">
                         <div className="w-12 h-12 mx-auto mb-3 bg-gray-100 rounded-full flex items-center justify-center">
@@ -807,7 +783,7 @@ const Feed = () => {
                 // Loading skeletons for Must Watch section
                 [...Array(6)].map((_, i) => (
                   <div key={i} className="group bg-white rounded-xl overflow-hidden shadow-md border border-gray-100 animate-pulse">
-                    <div className="relative aspect-3/4 bg-gradient-to-br from-amber-100 to-orange-100">
+                    <div className="relative aspect-3/4 bg-linear-to-br from-amber-100 to-orange-100">
                       <div className="absolute top-2 left-2">
                         <div className="bg-gray-200 rounded-full px-3 py-1 h-6 w-20"></div>
                       </div>
