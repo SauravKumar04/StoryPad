@@ -763,7 +763,26 @@ const Feed = () => {
 
             {/* Stories Grid */}
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4 sm:gap-5 lg:gap-6 mb-6">
-              {stories.map((story) => (
+              {loading ? (
+                // Loading skeletons for Must Watch section
+                [...Array(5)].map((_, i) => (
+                  <div key={i} className="group bg-white rounded-xl overflow-hidden shadow-md border border-amber-200/50 ring-1 ring-amber-100/50 animate-pulse">
+                    <div className="relative aspect-3/4 bg-gradient-to-br from-amber-100 to-orange-100">
+                      <div className="absolute top-2 left-2">
+                        <div className="bg-gray-200 rounded-full px-3 py-1 h-6 w-20"></div>
+                      </div>
+                      <div className="absolute bottom-2 right-2">
+                        <div className="bg-gray-200 rounded-lg px-2 py-1 h-6 w-16"></div>
+                      </div>
+                    </div>
+                    <div className="p-3">
+                      <div className="h-4 bg-gray-200 rounded mb-2"></div>
+                      <div className="h-3 bg-gray-200 rounded w-3/4"></div>
+                    </div>
+                  </div>
+                ))
+              ) : stories.length > 0 ? (
+                stories.map((story) => (
                 <Link
                   key={story._id}
                   to={`/story/${story._id}`}
@@ -821,7 +840,14 @@ const Feed = () => {
                     </div>
                   </div>
                 </Link>
-              ))}
+                ))
+              ) : (
+                // Empty state for Must Watch section
+                <div className="col-span-full text-center py-8">
+                  <Crown className="h-12 w-12 text-amber-300 mx-auto mb-3" />
+                  <p className="text-amber-600 font-medium">No featured stories available</p>
+                </div>
+              )}
             </div>
 
 
@@ -1043,7 +1069,24 @@ const Feed = () => {
         {/* Premium Stories Grid - Wattpad Style */}
         <div>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4 sm:gap-5 lg:gap-6">
-            {filteredStories.length > 0 ? (
+            {allStoriesLoading ? (
+              // Loading skeleton for Browse by Genre
+              [...Array(12)].map((_, i) => (
+                <div key={i} className="bg-white rounded-2xl overflow-hidden shadow-sm animate-pulse">
+                  <div className="aspect-3/4 bg-gray-200"></div>
+                  <div className="p-3 space-y-2">
+                    <div className="h-4 bg-gray-200 rounded"></div>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-2">
+                        <div className="w-6 h-6 bg-gray-200 rounded-full"></div>
+                        <div className="h-3 bg-gray-200 rounded w-12"></div>
+                      </div>
+                      <div className="w-12 h-6 bg-gray-200 rounded-full"></div>
+                    </div>
+                  </div>
+                </div>
+              ))
+            ) : filteredStories.length > 0 ? (
               (() => {
                 const currentStoriesPerRow = storiesPerRow;
                 const storiesToShow = currentStoriesPerRow * browseRowsShown;
