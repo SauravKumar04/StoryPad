@@ -190,6 +190,10 @@ export const likeStory = async (req, res) => {
     }
     
     await story.save();
+    
+    // Clear cache since engagement changed
+    clearStoriesCache();
+    
     res.json({ liked: !hasLiked, likesCount: story.likes.length });
   } catch (error) {
     res.status(500).json({ message: 'Something went wrong' });
@@ -266,8 +270,99 @@ export const incrementReads = async (req, res) => {
     story.reads += 1;
     await story.save();
     
+    // Clear cache since engagement changed
+    clearStoriesCache();
+    
     res.json({ reads: story.reads });
   } catch (error) {
+    res.status(500).json({ message: 'Something went wrong' });
+  }
+};
+
+export const getMustWatchStories = async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit) || 10;
+    
+    // Check cache first
+    const cacheKey = `mustwatch_${limit}`;
+    const cached = storiesCache.get(cacheKey);
+    if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+      return res.json(cached.data);
+    }
+    
+    // Get stories with engagement metrics
+    const stories = await Story.aggregate([
+      { $match: { isPublished: true } },
+      {
+        $lookup: {
+          from: 'storycomments',
+          localField: '_id',
+          foreignField: 'story',
+          as: 'comments'
+        }
+      },
+      {
+        $addFields: {
+          likesCount: { $size: '$likes' },
+          commentsCount: { $size: '$comments' },
+          // Engagement score calculation:
+          // Likes (weight: 3) + Views/10 (weight: 1) + Comments (weight: 5)
+          engagementScore: {
+            $add: [
+              { $multiply: [{ $size: '$likes' }, 3] },           // Likes * 3
+              { $divide: ['$reads', 10] },                       // Views / 10
+              { $multiply: [{ $size: '$comments' }, 5] }         // Comments * 5
+            ]
+          }
+        }
+      },
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'author',
+          foreignField: '_id',
+          as: 'author'
+        }
+      },
+      {
+        $unwind: '$author'
+      },
+      {
+        $project: {
+          title: 1,
+          description: 1,
+          coverImage: 1,
+          tags: 1,
+          category: 1,
+          targetAudience: 1,
+          status: 1,
+          likes: 1,
+          reads: 1,
+          createdAt: 1,
+          updatedAt: 1,
+          likesCount: 1,
+          commentsCount: 1,
+          engagementScore: 1,
+          'author.username': 1,
+          'author.profilePicture': 1,
+          'author._id': 1
+        }
+      },
+      { $sort: { engagementScore: -1, createdAt: -1 } }, // Sort by engagement, then recency
+      { $limit: limit }
+    ]);
+    
+    const responseData = { stories };
+    
+    // Cache the response
+    storiesCache.set(cacheKey, {
+      data: responseData,
+      timestamp: Date.now()
+    });
+    
+    res.json(responseData);
+  } catch (error) {
+    console.error('Error fetching must watch stories:', error);
     res.status(500).json({ message: 'Something went wrong' });
   }
 };

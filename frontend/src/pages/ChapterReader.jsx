@@ -54,9 +54,30 @@ const ChapterReader = () => {
     try {
       const response = await api.get(`/stories/${storyId}`);
       setStory(response.data);
+      
+      // Increment read count when chapter is viewed
+      incrementReadCount();
     } catch (error) {
       console.error('Error fetching story:', error);
       toast.error('Failed to load story');
+    }
+  };
+
+  const incrementReadCount = async () => {
+    try {
+      // Check if we already incremented for this session
+      const sessionKey = `read_${storyId}`;
+      if (sessionStorage.getItem(sessionKey)) {
+        return; // Already counted for this session
+      }
+      
+      await api.patch(`/stories/${storyId}/read`);
+      
+      // Mark as counted for this session
+      sessionStorage.setItem(sessionKey, 'true');
+    } catch (err) {
+      // Don't log error as it's not critical for user experience
+      console.warn('Failed to increment read count:', err);
     }
   };
 

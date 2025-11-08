@@ -2,9 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { 
   Heart, 
-  MessageCircle, 
+  MessageCircle,
   Bookmark, 
-  Share2,
   User,
   Clock,
   Eye,
@@ -25,21 +24,26 @@ import { toast } from 'react-toastify';
 import api, { searchUsers } from '../utils/api';
 
 const Feed = () => {
+  // ==================== STATE MANAGEMENT ====================
+  
+  // Must Watch section state
   const [stories, setStories] = useState([]);
-  const [featuredStories, setFeaturedStories] = useState([]);
-  const [trendingStories, setTrendingStories] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [pagination, setPagination] = useState({});
+  
+  // Browse by Genre section state - separate state for ALL stories
+  const [allStories, setAllStories] = useState([]);
+  const [allStoriesLoading, setAllStoriesLoading] = useState(true);
   const [selectedGenre, setSelectedGenre] = useState('All');
   const [sortBy, setSortBy] = useState('popular'); // 'popular', 'recent', 'trending'
   const [showFilters, setShowFilters] = useState(false);
+  const [browseRowsShown, setBrowseRowsShown] = useState(1);
+  
+  // User interaction state
   const [followedUsers, setFollowedUsers] = useState(new Set());
   const [bookmarkedStories, setBookmarkedStories] = useState(new Set());
   const [likedStories, setLikedStories] = useState(new Set());
-  const [browseRowsShown, setBrowseRowsShown] = useState(1);
   
-  // Search related state
+  // User search state
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [searchLoading, setSearchLoading] = useState(false);
@@ -51,17 +55,10 @@ const Feed = () => {
   const [storySearchLoading, setStorySearchLoading] = useState(false);
   const [showStorySearchResults, setShowStorySearchResults] = useState(false);
 
-  // Premium genre sections state
-  const [premiumGenres, setPremiumGenres] = useState({
-    'Romance': { stories: [], rowsShown: 1, loading: false },
-    'Fantasy': { stories: [], rowsShown: 1, loading: false },
-    'Thriller': { stories: [], rowsShown: 1, loading: false },
-    'Horror': { stories: [], rowsShown: 1, loading: false },
-    'Mystery': { stories: [], rowsShown: 1, loading: false },
-    'Young Adult': { stories: [], rowsShown: 1, loading: false },
-    'Science Fiction': { stories: [], rowsShown: 1, loading: false },
-    'Adventure': { stories: [], rowsShown: 1, loading: false }
-  });
+  // Responsive grid state
+  const [storiesPerRow, setStoriesPerRow] = useState(2);
+
+  // ==================== HOOKS & CONSTANTS ====================
   
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -72,26 +69,42 @@ const Feed = () => {
     'Poetry', 'Non-Fiction', 'Paranormal', 'Contemporary', 'Action'
   ];
 
+  // ==================== EFFECTS ====================
+  
+  // Handle responsive grid calculations
   useEffect(() => {
-    fetchStories();
+    const updateStoriesPerRow = () => {
+      const newStoriesPerRow = calculateStoriesPerRow();
+      const previousStoriesPerRow = storiesPerRow;
+      setStoriesPerRow(newStoriesPerRow);
+      // Reset browse rows to 1 when screen size changes to ensure complete rows
+      setBrowseRowsShown(1);
+      
+
+    };
+
+    // Set initial value
+    updateStoriesPerRow();
+
+    // Add resize listener
+    window.addEventListener('resize', updateStoriesPerRow);
+
+    // Cleanup
+    return () => window.removeEventListener('resize', updateStoriesPerRow);
+  }, []);
+
+  // Refetch Must Watch stories when screen size category changes
+  useEffect(() => {
+    if (storiesPerRow !== 2) { // Skip initial render
+      fetchMustWatchStories();
+    }
+  }, [storiesPerRow]);
+
+  useEffect(() => {
+    fetchMustWatchStories();
+    fetchAllStoriesForBrowse();
     fetchFollowedUsers();
     fetchBookmarkedStories();
-    
-    // Fetch premium genre sections
-    Object.keys(premiumGenres).forEach(genre => {
-      fetchStoriesByGenre(genre);
-    });
-
-    // Handle window resize for responsive grid calculation
-    const handleResize = () => {
-      // Force re-render when screen size changes to recalculate grid
-      setPremiumGenres(prev => ({ ...prev }));
-    };
-
-    window.addEventListener('resize', handleResize);
-    return () => {
-      window.removeEventListener('resize', handleResize);
-    };
     
     // Socket.io for realtime updates (optional)
     let socket;
@@ -105,7 +118,6 @@ const Feed = () => {
       });
       
       socket.on('connect', () => {
-        console.log('Socket connected');
         socket.emit('join-feed', user?.id);
       });
       
@@ -128,59 +140,10 @@ const Feed = () => {
     };
   }, [user]);
 
-  // Fetch stories for premium genre sections
-  const fetchStoriesByGenre = async (genre) => {
-    try {
-      setPremiumGenres(prev => ({
-        ...prev,
-        [genre]: { ...prev[genre], loading: true }
-      }));
-
-      const response = await api.get('/stories');
-      const allStories = response.data;
-      
-      // Filter stories by genre (using category field)
-      const genreStories = allStories
-        .filter(story => story.category === genre)
-        .map(story => ({
-          ...story,
-          totalLikes: story.likes?.length || 0,
-          hasRating: !!(story.rating && story.rating > 0),
-          rating: story.rating || 0,
-          chapterCount: story.chapters?.length || 0,
-          createdAtTimestamp: new Date(story.createdAt).getTime()
-        }))
-        .sort((a, b) => b.totalLikes - a.totalLikes); // Sort by popularity
-
-      // Update liked stories state for premium stories
-      const userLikedStories = new Set(likedStories);
-      genreStories.forEach(story => {
-        if (story.likes?.some(like => like._id === user?.id)) {
-          userLikedStories.add(story._id);
-        }
-      });
-      setLikedStories(userLikedStories);
-
-      setPremiumGenres(prev => ({
-        ...prev,
-        [genre]: { 
-          ...prev[genre], 
-          stories: genreStories,
-          loading: false
-        }
-      }));
-
-    } catch (error) {
-      console.error(`Error fetching ${genre} stories:`, error);
-      setPremiumGenres(prev => ({
-        ...prev,
-        [genre]: { ...prev[genre], loading: false }
-      }));
-    }
-  };
-
+  // ==================== UTILITY FUNCTIONS ====================
+  
   // Function to calculate stories per row based on screen size
-  const getStoriesPerRow = () => {
+  const calculateStoriesPerRow = () => {
     // This mirrors the grid system: grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6
     if (window.innerWidth >= 1536) return 6; // 2xl
     if (window.innerWidth >= 1280) return 5; // xl
@@ -189,27 +152,23 @@ const Feed = () => {
     return 2; // default (sm and below)
   };
 
-  // Load more rows for premium sections
-  const loadMoreRows = (genre) => {
-    setPremiumGenres(prev => ({
-      ...prev,
-      [genre]: { 
-        ...prev[genre], 
-        rowsShown: prev[genre].rowsShown + 1
-      }
-    }));
-  };
-
   // Load more rows for browse by genre section
   const loadMoreBrowseRows = () => {
     setBrowseRowsShown(prev => prev + 1);
   };
 
-  const fetchStories = async (page = 1, appendToExisting = false) => {
+  // ==================== DATA FETCHING FUNCTIONS ====================
+  
+  const fetchMustWatchStories = async () => {
     try {
-      // Fetch stories with pagination - 5 per page, max 10 total
-      const response = await api.get(`/stories?page=${page}&limit=5`);
-      const { stories: fetchedStories, pagination } = response.data;
+      // Calculate stories needed for Must Watch section:
+      // Mobile/Tablet (≤3 cols): 2 complete rows = 4 stories
+      // Desktop+ (4+ cols): 1 complete row = storiesPerRow stories  
+      const isMobile = storiesPerRow <= 3; 
+      const limit = isMobile ? 4 : storiesPerRow;
+      
+      const response = await api.get(`/stories/must-watch?limit=${limit}`);
+      const { stories: fetchedStories } = response.data;
       
       // Process stories with computed fields
       const processedStories = fetchedStories.map(story => {
@@ -225,48 +184,55 @@ const Feed = () => {
         };
       });
       
-      // Either append or replace stories based on whether we're loading more
-      if (appendToExisting) {
-        setStories(prevStories => [...prevStories, ...processedStories]);
-      } else {
-        setStories(processedStories);
-      }
+      // Set the Must Watch stories
+      setStories(processedStories);
       
-      // Store pagination info for load more functionality
-      setPagination(pagination);
-      
-      // Initialize liked stories state (only on first load)
-      if (!appendToExisting) {
-        const userLikedStories = new Set();
-        processedStories.forEach(story => {
-          if (story.likes?.some(like => like._id === user?.id)) {
-            userLikedStories.add(story._id);
-          }
-        });
-        setLikedStories(userLikedStories);
-      }
+      // Initialize liked stories state
+      const userLikedStories = new Set();
+      processedStories.forEach(story => {
+        if (story.likes?.some(like => like._id === user?.id)) {
+          userLikedStories.add(story._id);
+        }
+      });
+      setLikedStories(userLikedStories);
       
     } catch (error) {
-      console.error('Error fetching stories:', error);
+      console.error('Error fetching must watch stories:', error);
       toast.error('Failed to load stories. Please refresh the page.');
     } finally {
       setLoading(false);
     }
   };
 
-  // Load more stories for infinite scroll
-  const loadMoreStories = async () => {
-    if (loadingMore || !pagination.hasNext) return;
-    
-    setLoadingMore(true);
+  // Fetch ALL stories for Browse by Genre section
+  const fetchAllStoriesForBrowse = async () => {
     try {
-      await fetchStories(pagination.currentPage + 1, true);
+      setAllStoriesLoading(true);
+      
+      // Fetch all stories without pagination limit
+      const response = await api.get('/stories?limit=1000'); // Get all stories
+      const { stories: fetchedStories } = response.data;
+      
+      // Process stories with computed fields
+      const processedStories = fetchedStories.map(story => ({
+        ...story,
+        totalLikes: story.likes?.length || 0,
+        hasRating: !!(story.rating && story.rating > 0),
+        rating: story.rating || 0,
+        chapterCount: story.chapters?.length || 0,
+        createdAtTimestamp: new Date(story.createdAt).getTime()
+      }));
+      
+      setAllStories(processedStories);
+      
     } catch (error) {
-      toast.error('Failed to load more stories');
+      console.error('Error fetching all stories for browse:', error);
     } finally {
-      setLoadingMore(false);
+      setAllStoriesLoading(false);
     }
   };
+
+
 
   const fetchFollowedUsers = async () => {
     try {
@@ -281,7 +247,7 @@ const Feed = () => {
     try {
       const response = await api.get('/bookmarks');
       const bookmarkIds = response.data
-        .filter(bookmark => bookmark.story && bookmark.story._id)
+        .filter(bookmark => bookmark && bookmark.story && bookmark.story._id)
         .map(bookmark => bookmark.story._id);
       setBookmarkedStories(new Set(bookmarkIds));
     } catch (error) {
@@ -291,6 +257,8 @@ const Feed = () => {
     }
   };
 
+  // ==================== EVENT HANDLERS ====================
+  
   const handleLike = async (storyId, e) => {
     e.stopPropagation();
     try {
@@ -389,7 +357,7 @@ const Feed = () => {
 
   // Filter and sort stories
   const getFilteredAndSortedStories = () => {
-    let filtered = stories;
+    let filtered = allStories; // Use allStories instead of stories
 
     // Filter by genre
     if (selectedGenre !== 'All') {
@@ -492,8 +460,8 @@ const Feed = () => {
 
     setStorySearchLoading(true);
     try {
-      // Search through existing stories by title, description, and tags
-      const filteredStories = stories.filter(story => {
+      // Search through all stories by title, description, and tags
+      const filteredStories = allStories.filter(story => {
         const searchTerm = query.toLowerCase();
         const matchesTitle = story.title.toLowerCase().includes(searchTerm);
         const matchesDescription = story.description?.toLowerCase().includes(searchTerm);
@@ -531,31 +499,73 @@ const Feed = () => {
     }, 200);
   };
 
-
-
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50">
         <Navbar />
-        <div className="max-w-7xl mx-auto py-4 sm:py-6 lg:py-8 px-3 sm:px-4 lg:px-6 xl:px-8">
-          <div className="animate-pulse">
-            <div className="h-8 sm:h-10 bg-gray-200 rounded-lg w-1/2 sm:w-1/3 mb-6 sm:mb-8"></div>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4 sm:gap-5 lg:gap-6">
-              {[...Array(12)].map((_, i) => (
-                <div key={i} className="bg-white rounded-2xl overflow-hidden shadow-sm">
-                  <div className="aspect-3/4 bg-gray-200 animate-pulse"></div>
-                  <div className="p-3 space-y-2">
-                    <div className="h-4 bg-gray-200 rounded animate-pulse"></div>
-                    <div className="flex items-center justify-between">
+        
+        {/* Hero Section Skeleton */}
+        <div className="bg-linear-to-br from-white via-orange-50/30 to-amber-50/40 border-b border-gray-100">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10 lg:py-12">
+            <div className="text-center animate-pulse">
+              <div className="h-16 sm:h-20 md:h-24 bg-gray-200 rounded-lg mx-auto mb-4 w-3/4"></div>
+              <div className="h-6 bg-gray-200 rounded-lg mx-auto mb-6 w-1/2"></div>
+            </div>
+          </div>
+        </div>
+
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 xl:px-8 py-4 sm:py-6 lg:py-8">
+          {/* Must Watch Section Skeleton */}
+          <div className="mb-8">
+            <div className="bg-linear-to-br from-white to-amber-50/30 rounded-2xl p-5 border border-amber-200/30 shadow-xl mb-6 ring-1 ring-amber-100/50 animate-pulse">
+              <div className="flex items-center space-x-3 mb-6">
+                <div className="w-10 h-10 bg-gray-200 rounded-xl"></div>
+                <div>
+                  <div className="h-6 bg-gray-200 rounded w-32 mb-2"></div>
+                  <div className="h-4 bg-gray-200 rounded w-48"></div>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4 sm:gap-5 lg:gap-6">
+                {[...Array(5)].map((_, i) => (
+                  <div key={i} className="bg-gray-100 rounded-xl overflow-hidden">
+                    <div className="aspect-3/4 bg-gray-200"></div>
+                    <div className="p-3 space-y-2">
+                      <div className="h-4 bg-gray-200 rounded"></div>
                       <div className="flex items-center space-x-2">
-                        <div className="w-6 h-6 bg-gray-200 rounded-full animate-pulse"></div>
-                        <div className="h-3 bg-gray-200 rounded w-12 animate-pulse"></div>
+                        <div className="w-6 h-6 bg-gray-200 rounded-full"></div>
+                        <div className="h-3 bg-gray-200 rounded w-16"></div>
                       </div>
-                      <div className="w-6 h-3 bg-gray-200 rounded animate-pulse"></div>
                     </div>
                   </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Browse by Genre Section Skeleton */}
+          <div className="mb-8">
+            <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-lg animate-pulse">
+              <div className="flex items-center space-x-3 mb-6">
+                <div className="w-10 h-10 bg-gray-200 rounded-xl"></div>
+                <div>
+                  <div className="h-6 bg-gray-200 rounded w-36 mb-2"></div>
+                  <div className="h-4 bg-gray-200 rounded w-52"></div>
                 </div>
-              ))}
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4 sm:gap-5 lg:gap-6">
+                {[...Array(10)].map((_, i) => (
+                  <div key={i} className="bg-gray-100 rounded-xl overflow-hidden">
+                    <div className="aspect-3/4 bg-gray-200"></div>
+                    <div className="p-3 space-y-2">
+                      <div className="h-4 bg-gray-200 rounded"></div>
+                      <div className="flex items-center space-x-2">
+                        <div className="w-6 h-6 bg-gray-200 rounded-full"></div>
+                        <div className="h-3 bg-gray-200 rounded w-16"></div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </div>
@@ -730,22 +740,23 @@ const Feed = () => {
       </div>
 
       <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 xl:px-8 py-4 sm:py-6 lg:py-8">
-        {/* Latest Stories Section */}
+        {/* Must Watch Section */}
         <div className="mb-8">
-          <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-lg mb-6">
+          <div className="bg-linear-to-br from-white to-amber-50/30 rounded-2xl p-5 border border-amber-200/30 shadow-xl mb-6 ring-1 ring-amber-100/50">
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 bg-linear-to-r from-orange-500 to-amber-500 rounded-xl flex items-center justify-center shadow-md">
-                  <BookOpen className="h-5 w-5 text-white" />
+                <div className="w-10 h-10 bg-linear-to-br from-amber-400 via-amber-500 to-orange-500 rounded-xl flex items-center justify-center shadow-lg">
+                  <Crown className="h-5 w-5 text-white fill-current" />
                 </div>
                 <div>
-                  <h2 className="text-xl font-bold text-gray-900">Latest Stories</h2>
-                  <p className="text-sm text-gray-600">Fresh content from our community</p>
+                  <h2 className="text-xl font-bold text-gray-900">Must Watch</h2>
+                  <p className="text-sm text-gray-600">Curated stories that captivated our community</p>
                 </div>
               </div>
               <div className="hidden sm:block">
-                <div className="bg-green-50 text-green-600 px-2.5 py-1 rounded-full font-medium text-xs">
-                  Updated
+                <div className="bg-linear-to-r from-amber-50 to-orange-50 text-amber-700 px-3 py-1.5 rounded-full font-semibold text-xs border border-amber-200/50 flex items-center gap-1.5 shadow-sm">
+                  <Crown className="h-3.5 w-3.5 text-amber-600 fill-current" />
+                  <span>Premium</span>
                 </div>
               </div>
             </div>
@@ -756,7 +767,7 @@ const Feed = () => {
                 <Link
                   key={story._id}
                   to={`/story/${story._id}`}
-                  className="group bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 hover:-translate-y-1 border border-gray-200 hover:border-orange-300"
+                  className="group bg-white rounded-xl overflow-hidden shadow-md hover:shadow-xl transition-all duration-300 hover:-translate-y-1 border border-amber-200/50 hover:border-amber-300 ring-1 ring-amber-100/50"
                 >
                   {/* Story Cover */}
                   <div className="relative aspect-3/4 overflow-hidden bg-linear-to-br from-orange-50 to-amber-50">
@@ -772,17 +783,16 @@ const Feed = () => {
                       </div>
                     )}
                     
-                    {/* Status Badge */}
-                    {story.status === 'Completed' && (
-                      <div className="absolute top-2 left-2">
-                        <div className="bg-white/90 backdrop-blur-sm text-green-700 px-2 py-1 rounded-lg text-xs font-bold shadow-sm border border-green-200">
-                          Complete
-                        </div>
+                    {/* Premium Badge */}
+                    <div className="absolute top-2 left-2">
+                      <div className="bg-white/95 backdrop-blur-sm text-gray-800 px-2.5 py-1 rounded-full text-xs font-semibold shadow-lg border border-white/50 flex items-center gap-1.5">
+                        <Crown className="h-3 w-3 text-amber-500 fill-current" />
+                        <span>Featured</span>
                       </div>
-                    )}
+                    </div>
                     
                     {/* Stats Overlay */}
-                    <div className="absolute bottom-2 right-2 bg-black/70 backdrop-blur-sm rounded-lg px-2 py-1">
+                    <div className="absolute bottom-2 right-2 bg-amber-900/80 backdrop-blur-sm rounded-lg px-2 py-1 shadow-lg">
                       <div className="flex items-center space-x-2 text-white text-xs">
                         <div className="flex items-center space-x-1">
                           <Eye className="h-3 w-3" />
@@ -792,64 +802,29 @@ const Feed = () => {
                           <Heart className="h-3 w-3" />
                           <span>{story.totalLikes || 0}</span>
                         </div>
+                        {story.commentsCount > 0 && (
+                          <div className="flex items-center space-x-1">
+                            <MessageCircle className="h-3 w-3" />
+                            <span>{story.commentsCount}</span>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
 
                   {/* Story Info */}
                   <div className="p-3 space-y-2">
-                    <div className="flex items-start justify-between gap-2">
-                      <h3 className="font-bold text-gray-900 text-sm line-clamp-2 group-hover:text-orange-600 transition-colors">
+                    <div>
+                      <h3 className="font-bold text-gray-900 text-sm line-clamp-2 group-hover:text-amber-700 transition-colors">
                         {story.title}
                       </h3>
-                    </div>
-                    
-                    {/* Author Info */}
-                    <div className="flex items-center space-x-2 min-w-0">
-                      <div className="w-6 h-6 bg-linear-to-br from-orange-500 to-red-500 rounded-full flex items-center justify-center text-white font-bold text-xs shrink-0">
-                        {story.author.profilePicture ? (
-                          <img 
-                            src={story.author.profilePicture} 
-                            alt={story.author.username}
-                            className="w-full h-full object-cover rounded-full"
-                          />
-                        ) : (
-                          story.author.username?.[0]?.toUpperCase()
-                        )}
-                      </div>
-                      <p className="font-medium text-xs text-gray-600 truncate group-hover:text-orange-600 transition-colors">
-                        {story.author.username}
-                      </p>
                     </div>
                   </div>
                 </Link>
               ))}
             </div>
 
-            {/* Load More Button - only show for first page (max 10 stories total) */}
-            {pagination.hasNext && pagination.currentPage === 1 && (
-              <div className="flex justify-center">
-                <button
-                  onClick={loadMoreStories}
-                  disabled={loadingMore}
-                  className="px-6 py-2.5 bg-white border border-gray-200 hover:border-orange-300 text-gray-700 hover:text-orange-600 rounded-xl font-medium text-sm transition-all shadow-sm hover:shadow-md flex items-center space-x-2"
-                >
-                  {loadingMore ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-orange-500 border-t-transparent rounded-full animate-spin"></div>
-                      <span>Loading...</span>
-                    </>
-                  ) : (
-                    <>
-                      <span>Load More</span>
-                      <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded-lg text-xs font-semibold">
-                        +5
-                      </span>
-                    </>
-                  )}
-                </button>
-              </div>
-            )}
+
           </div>
         </div>
 
@@ -954,213 +929,7 @@ const Feed = () => {
           </div>
         </div>
 
-        {/* Featured Genre Collections */}
-        <div className="mb-8">
-          <div className="bg-white rounded-2xl p-5 mb-6 border border-gray-100 shadow-lg">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 bg-linear-to-r from-orange-500 to-amber-500 rounded-xl flex items-center justify-center shadow-md">
-                  <Sparkles className="h-5 w-5 text-white" />
-                </div>
-                <div>
-                  <h1 className="text-xl font-bold text-gray-900">
-                    Featured Collections
-                  </h1>
-                  <p className="text-sm text-gray-600">Curated stories for you</p>
-                </div>
-              </div>
-              <div className="hidden sm:block">
-                <div className="bg-orange-50 text-orange-600 px-2.5 py-1 rounded-full font-medium text-xs">
-                  Trending
-                </div>
-              </div>
-            </div>
-          </div>
 
-          {/* Premium Genre Sections */}
-          {Object.entries(premiumGenres).map(([genre, data]) => {
-            const getGenreIcon = () => {
-              switch(genre) {
-                case 'Romance': return <Heart className="h-4 w-4" />;
-                case 'Fantasy': return <Sparkles className="h-4 w-4" />;
-                case 'Mystery': return <Search className="h-4 w-4" />;
-                case 'Horror': return <Eye className="h-4 w-4" />;
-                case 'Science Fiction': return <Star className="h-4 w-4" />;
-                case 'Thriller': return <Fire className="h-4 w-4" />;
-                case 'Young Adult': return <Users className="h-4 w-4" />;
-                case 'Adventure': return <TrendingUp className="h-4 w-4" />;
-                default: return <BookOpen className="h-4 w-4" />;
-              }
-            };
-
-            const getGenreGradient = () => {
-              switch(genre) {
-                case 'Romance': return 'from-pink-500 to-rose-500';
-                case 'Fantasy': return 'from-purple-500 to-indigo-500';
-                case 'Mystery': return 'from-gray-600 to-gray-800';
-                case 'Horror': return 'from-red-600 to-black';
-                case 'Science Fiction': return 'from-blue-500 to-cyan-500';
-                case 'Thriller': return 'from-orange-500 to-red-600';
-                case 'Young Adult': return 'from-green-500 to-teal-500';
-                case 'Adventure': return 'from-yellow-500 to-orange-500';
-                default: return 'from-orange-500 to-amber-500';
-              }
-            };
-
-            const storiesPerRow = getStoriesPerRow();
-            const storiesToShow = storiesPerRow * data.rowsShown;
-            const displayedStories = data.stories.slice(0, storiesToShow);
-            const hasMoreStories = data.stories.length > storiesToShow;
-
-            if (data.stories.length === 0 && !data.loading) return null;
-
-            return (
-              <div key={genre} className="mb-8 last:mb-6">
-                {/* Section Header */}
-                <div className="mb-4">
-                  <div className="flex items-center space-x-3 p-3 bg-white rounded-xl shadow-sm border border-gray-100 max-w-fit">
-                    <div className={`w-8 h-8 bg-linear-to-r ${getGenreGradient()} rounded-lg flex items-center justify-center text-white shadow-md`}>
-                      {getGenreIcon()}
-                    </div>
-                    <div>
-                      <h3 className="text-lg font-bold text-gray-900 whitespace-nowrap">
-                        {genre === 'Romance' && 'Romance Stories'}
-                        {genre === 'Fantasy' && 'Fantasy Adventures'}  
-                        {genre === 'Horror' && 'Horror Tales'}
-                        {genre === 'Thriller' && 'Suspense & Thrills'}
-                        {genre === 'Mystery' && 'Mystery & Detective'}
-                        {genre === 'Young Adult' && 'Young Adult'}
-                        {genre === 'Science Fiction' && 'Sci-Fi Universe'}
-                        {genre === 'Adventure' && 'Epic Adventures'}
-                        {!['Romance', 'Fantasy', 'Horror', 'Thriller', 'Mystery', 'Young Adult', 'Science Fiction', 'Adventure'].includes(genre) && `${genre} Stories`}
-                      </h3>
-                      <p className="text-xs text-gray-600 whitespace-nowrap">
-                        {data.stories.length > 0 
-                          ? `${data.stories.length} ${data.stories.length === 1 ? 'story' : 'stories'}` 
-                          : 'Loading stories...'
-                        }
-                      </p>
-                    </div>
-                  </div>
-                </div>
-                {/* Stories Grid */}
-                {data.loading ? (
-                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4 sm:gap-5 lg:gap-6">
-                    {[...Array(8)].map((_, i) => (
-                      <div key={i} className="bg-white rounded-xl overflow-hidden shadow-sm animate-pulse">
-                        <div className="aspect-3/4 bg-gray-200"></div>
-                        <div className="p-3 space-y-2">
-                          <div className="h-4 bg-gray-200 rounded"></div>
-                          <div className="flex items-center space-x-2">
-                            <div className="w-6 h-6 bg-gray-200 rounded-full"></div>
-                            <div className="h-3 bg-gray-200 rounded w-16"></div>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4 sm:gap-5 lg:gap-6">
-                    {displayedStories.map((story) => (
-                      <Link
-                        key={story._id}
-                        to={`/story/${story._id}`}
-                        className="group bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 hover:-translate-y-1 border border-gray-200 hover:border-orange-300"
-                      >
-                        {/* Story Cover */}
-                        <div className="relative aspect-3/4 overflow-hidden bg-linear-to-br from-orange-50 to-amber-50">
-                          {story.coverImage ? (
-                            <img 
-                              src={story.coverImage}
-                              alt={story.title}
-                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                            />
-                          ) : (
-                            <div className="w-full h-full bg-linear-to-br from-orange-100 via-amber-50 to-orange-200 flex items-center justify-center">
-                              <BookOpen className="h-8 w-8 sm:h-10 sm:w-10 text-orange-400" />
-                            </div>
-                          )}
-                          
-                          {/* Status Badge */}
-                          {story.status === 'Completed' && (
-                            <div className="absolute top-2 left-2">
-                              <div className="bg-white/90 backdrop-blur-sm text-green-700 px-2 py-1 rounded-lg text-xs font-bold shadow-sm border border-green-200">
-                                Complete
-                              </div>
-                            </div>
-                          )}
-                          {story.status === 'Ongoing' && (
-                            <div className="absolute top-2 left-2">
-                              <div className="bg-white/90 backdrop-blur-sm text-orange-700 px-2 py-1 rounded-lg text-xs font-bold shadow-sm border border-orange-200">
-                                Ongoing
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Stats Overlay */}
-                          <div className="absolute bottom-2 right-2 bg-black/70 backdrop-blur-sm rounded-lg px-2 py-1">
-                            <div className="flex items-center space-x-2 text-white text-xs">
-                              <div className="flex items-center space-x-1">
-                                <Eye className="h-3 w-3" />
-                                <span>{story.reads || 0}</span>
-                              </div>
-                              <div className="flex items-center space-x-1">
-                                <Heart className="h-3 w-3" />
-                                <span>{story.totalLikes}</span>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Story Info */}
-                        <div className="p-3 space-y-2">
-                          <h3 className="font-semibold text-sm text-gray-900 line-clamp-2 group-hover:text-orange-600 transition-colors leading-tight">
-                            {story.title}
-                          </h3>
-                          
-                          <div className="flex items-center justify-between">
-                            {/* Author Info */}
-                            <div className="flex items-center space-x-2 min-w-0 group/author">
-                              <div className="w-6 h-6 bg-linear-to-br from-orange-500 to-red-500 rounded-full flex items-center justify-center text-white font-bold text-xs shrink-0">
-                                {story.author.profilePicture ? (
-                                  <img 
-                                    src={story.author.profilePicture} 
-                                    alt={story.author.username}
-                                    className="w-full h-full object-cover rounded-full"
-                                  />
-                                ) : (
-                                  story.author.username?.[0]?.toUpperCase()
-                                )}
-                              </div>
-                              <p className="font-medium text-xs text-gray-600 truncate group-hover/author:text-orange-600 transition-colors">
-                                {story.author.username}
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                      </Link>
-                    ))}
-                  </div>
-                )}
-                
-                {/* Load More Button positioned below the grid */}
-                {hasMoreStories && (
-                  <div className="flex justify-center mt-6">
-                    <button
-                      onClick={() => loadMoreRows(genre)}
-                      className="px-6 py-2.5 bg-white border border-gray-200 hover:border-orange-300 text-gray-700 hover:text-orange-600 rounded-xl font-medium text-sm transition-all shadow-sm hover:shadow-md flex items-center space-x-2"
-                    >
-                      <span>Load More</span>
-                      <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded-lg text-xs font-semibold">
-                        +{Math.min(storiesPerRow, data.stories.length - storiesToShow)}
-                      </span>
-                    </button>
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
 
         {/* Genre Filter Tabs - Responsive */}
         <div className="mb-8">
@@ -1193,8 +962,8 @@ const Feed = () => {
               };
               
               const genreStoryCount = genre === 'All' 
-                ? stories.length 
-                : stories.filter(story => story.category === genre).length;
+                ? allStories.length 
+                : allStories.filter(story => story.category === genre).length;
 
               return (
                 <button
@@ -1276,8 +1045,8 @@ const Feed = () => {
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4 sm:gap-5 lg:gap-6">
             {filteredStories.length > 0 ? (
               (() => {
-                const storiesPerRow = getStoriesPerRow();
-                const storiesToShow = storiesPerRow * browseRowsShown;
+                const currentStoriesPerRow = storiesPerRow;
+                const storiesToShow = currentStoriesPerRow * browseRowsShown;
                 const displayedBrowseStories = filteredStories.slice(0, storiesToShow);
                 const hasMoreBrowseStories = filteredStories.length > storiesToShow;
                 
@@ -1438,8 +1207,8 @@ const Feed = () => {
           
           {/* Load More Button for Browse Section */}
           {filteredStories.length > 0 && (() => {
-            const storiesPerRow = getStoriesPerRow();
-            const storiesToShow = storiesPerRow * browseRowsShown;
+            const currentStoriesPerRow = storiesPerRow;
+            const storiesToShow = currentStoriesPerRow * browseRowsShown;
             const hasMoreBrowseStories = filteredStories.length > storiesToShow;
             
             return hasMoreBrowseStories && (

@@ -85,8 +85,29 @@ const StoryDetail = () => {
       setStory(res.data);
       setIsLiked(res.data.likes?.some((l) => l._id === user?.id) || false);
       setLikesCount(res.data.likes?.length || 0);
+      
+      // Increment read count when story is viewed
+      incrementReadCount();
     } catch (err) {
       console.error(err);
+    }
+  };
+
+  const incrementReadCount = async () => {
+    try {
+      // Check if we already incremented for this session
+      const sessionKey = `read_${storyId}`;
+      if (sessionStorage.getItem(sessionKey)) {
+        return; // Already counted for this session
+      }
+      
+      await api.patch(`/stories/${storyId}/read`);
+      
+      // Mark as counted for this session
+      sessionStorage.setItem(sessionKey, 'true');
+    } catch (err) {
+      // Don't log error as it's not critical for user experience
+      console.warn('Failed to increment read count:', err);
     }
   };
 

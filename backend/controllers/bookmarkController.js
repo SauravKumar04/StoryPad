@@ -38,7 +38,18 @@ export const getBookmarks = async (req, res) => {
       })
       .sort({ createdAt: -1 });
     
-    res.json(bookmarks.map(b => b.story));
+    // Filter out bookmarks where the story has been deleted (null)
+    const validBookmarks = bookmarks.filter(bookmark => bookmark.story !== null);
+    
+    // Clean up orphaned bookmarks (where story is null)
+    const orphanedBookmarks = bookmarks.filter(bookmark => bookmark.story === null);
+    if (orphanedBookmarks.length > 0) {
+      const orphanedIds = orphanedBookmarks.map(b => b._id);
+      await Bookmark.deleteMany({ _id: { $in: orphanedIds } });
+      console.log(`Cleaned up ${orphanedBookmarks.length} orphaned bookmarks`);
+    }
+    
+    res.json(validBookmarks);
   } catch (error) {
     res.status(500).json({ message: 'Something went wrong' });
   }
