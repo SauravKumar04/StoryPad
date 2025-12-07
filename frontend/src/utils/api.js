@@ -109,4 +109,49 @@ export const searchStories = async (query, page = 1, limit = 20) => {
   }
 };
 
+// Draft functions
+export const saveDraft = async (draftData) => {
+  try {
+    const response = await api.post('/drafts/save', draftData);
+    return response.data;
+  } catch (error) {
+    console.error('Error saving draft:', error);
+    throw error;
+  }
+};
+
+export const getDrafts = async (type = null, storyId = null) => {
+  try {
+    const params = new URLSearchParams();
+    if (type) params.append('type', type);
+    if (storyId) params.append('storyId', storyId);
+    
+    const response = await api.get(`/drafts?${params.toString()}`);
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching drafts:', error);
+    throw error;
+  }
+};
+
+export const getDraft = async (draftId) => {
+  try {
+    const response = await api.get(`/drafts/${draftId}`);
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching draft:', error);
+    throw error;
+  }
+};
+
+export const deleteDraft = async (draftId) => {
+  try {
+    const response = await api.delete(`/drafts/${draftId}`);
+    return response.data;
+  } catch (error) {
+    console.error('Error deleting draft:', error);
+    throw error;
+  }
+};
+
 export default api;

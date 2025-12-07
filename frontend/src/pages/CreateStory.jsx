@@ -40,12 +40,17 @@ import {
   Swords,
   Drama,
   Smile,
-  Shield
+  Shield,
+  Wifi,
+  WifiOff,
+  CheckCircle,
+  AlertCircle
 } from 'lucide-react';
 import Navbar from '../components/Navbar';
 import RichTextEditor from '../components/RichTextEditor';
 import { toast } from 'react-toastify';
 import { useAuth } from '../context/AuthContext';
+import { useAutoSave } from '../hooks/useAutoSave';
 import api from '../utils/api';
 import '../styles/animations.css';
 
@@ -56,7 +61,6 @@ const CreateStory = () => {
   const [activeStep, setActiveStep] = useState(1);
   const [coverImagePreview, setCoverImagePreview] = useState(null);
   const [wordCount, setWordCount] = useState(0);
-  const [autoSaveStatus, setAutoSaveStatus] = useState('saved');
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [darkMode, setDarkMode] = useState(false);
   const [currentChapterIndex, setCurrentChapterIndex] = useState(0);
@@ -66,7 +70,6 @@ const CreateStory = () => {
     wordsToday: 0,
     streak: 0
   });
-  const autoSaveTimeoutRef = useRef();
 
   const [formData, setFormData] = useState({
     title: '',
@@ -90,6 +93,57 @@ const CreateStory = () => {
     }
   ]);
 
+  // Auto-save functionality
+  const autoSaveData = {
+    title: formData.title,
+    description: formData.description,
+    category: formData.category,
+    tags: formData.tags ? formData.tags.split(',').map(tag => tag.trim()).filter(tag => tag) : [],
+    coverImage: formData.coverImage,
+    targetAudience: formData.targetAudience,
+    language: formData.language,
+    status: formData.status,
+    chapters: chapters
+  };
+
+  const {
+    autoSaveStatus,
+    lastSaved,
+    hasUnsavedChanges,
+    saveNow,
+    clearDraft
+  } = useAutoSave(autoSaveData, {
+    delay: 3000,
+    storyId: null, // null for new story
+    type: 'story',
+    enabled: true,
+    onRestore: (restoredData) => {
+      // Restore form data
+      setFormData({
+        title: restoredData.title || '',
+        description: restoredData.description || '',
+        category: restoredData.category || 'Romance',
+        tags: Array.isArray(restoredData.tags) 
+          ? restoredData.tags.join(', ') 
+          : restoredData.tags || '',
+        targetAudience: restoredData.targetAudience || 'Young Adult',
+        language: restoredData.language || 'English',
+        status: restoredData.status || 'Ongoing',
+        coverImage: restoredData.coverImage || ''
+      });
+
+      // Restore cover image preview
+      if (restoredData.coverImage) {
+        setCoverImagePreview(restoredData.coverImage);
+      }
+
+      // Restore chapters
+      if (restoredData.chapters && restoredData.chapters.length > 0) {
+        setChapters(restoredData.chapters);
+      }
+    }
+  });
+
   const categories = [
     { id: 'romance', label: 'Romance', icon: Heart, color: 'from-pink-500 to-rose-500' },
     { id: 'fantasy', label: 'Fantasy', icon: Crown, color: 'from-purple-500 to-indigo-500' },
@@ -102,20 +156,7 @@ const CreateStory = () => {
     { id: 'thriller', label: 'Thriller', icon: Zap, color: 'from-red-500 to-pink-500' }
   ];
 
-  // Auto-save functionality
-  useEffect(() => {
-    if (formData.title || formData.description || chapters.some(ch => ch.content)) {
-      setAutoSaveStatus('saving');
-      
-      if (autoSaveTimeoutRef.current) {
-        clearTimeout(autoSaveTimeoutRef.current);
-      }
-      
-      autoSaveTimeoutRef.current = setTimeout(() => {
-        setAutoSaveStatus('saved');
-      }, 2000);
-    }
-  }, [formData, chapters]);
+
 
   // Calculate total word count
   useEffect(() => {
@@ -212,6 +253,10 @@ const CreateStory = () => {
       };
 
       await api.post('/stories', storyData);
+      
+      // Clear draft after successful publish
+      clearDraft();
+      
       toast.success('Story published successfully!');
       navigate('/feed');
     } catch (error) {
@@ -237,7 +282,7 @@ const CreateStory = () => {
         </div>
         
         {/* Writing Stats */}
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 gap-3 mb-4">
           <div className={`text-center p-3 rounded-lg ${darkMode ? 'bg-gray-800' : 'bg-orange-50'}`}>
             <div className="text-lg font-bold text-orange-500">{wordCount}</div>
             <div className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Words</div>
@@ -246,6 +291,40 @@ const CreateStory = () => {
             <div className="text-lg font-bold text-red-500">{chapters.length}</div>
             <div className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Chapters</div>
           </div>
+        </div>
+
+        {/* Auto-save Status */}
+        <div className={`flex items-center justify-between p-3 rounded-lg ${darkMode ? 'bg-gray-800' : 'bg-gray-50'}`}>
+          <div className="flex items-center space-x-2">
+            {autoSaveStatus === 'saving' && (
+              <>
+                <Wifi className="h-4 w-4 text-blue-500 animate-spin" />
+                <span className={`text-xs ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>Saving...</span>
+              </>
+            )}
+            {autoSaveStatus === 'saved' && (
+              <>
+                <CheckCircle className="h-4 w-4 text-green-500" />
+                <span className={`text-xs ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                  {lastSaved ? `Saved ${new Date(lastSaved).toLocaleTimeString()}` : 'All changes saved'}
+                </span>
+              </>
+            )}
+            {autoSaveStatus === 'error' && (
+              <>
+                <AlertCircle className="h-4 w-4 text-red-500" />
+                <span className={`text-xs ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>Auto-save failed</span>
+              </>
+            )}
+          </div>
+          {hasUnsavedChanges && (
+            <button
+              onClick={saveNow}
+              className="text-xs text-blue-500 hover:text-blue-600 transition-colors"
+            >
+              Save now
+            </button>
+          )}
         </div>
       </div>
 
@@ -907,6 +986,18 @@ const CreateStory = () => {
           <div className={`p-4 sm:p-6 border-b ${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-2 sm:space-x-4 flex-1 min-w-0">
+                {/* Back Button */}
+                <button
+                  onClick={() => setActiveStep(1)}
+                  className={`p-2 rounded-lg transition-colors hover:scale-105 ${
+                    darkMode 
+                      ? 'hover:bg-gray-700 text-gray-300 hover:text-white' 
+                      : 'hover:bg-gray-100 text-gray-600 hover:text-gray-900'
+                  }`}
+                  title="Back to Story Details"
+                >
+                  <ArrowLeft className="h-5 w-5" />
+                </button>
                 <button
                   onClick={() => setCurrentChapterIndex(Math.max(0, currentChapterIndex - 1))}
                   disabled={currentChapterIndex === 0}

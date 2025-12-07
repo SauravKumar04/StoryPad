@@ -1,5 +1,6 @@
 import Story from '../models/Story.js';
 import Chapter from '../models/Chapter.js';
+import Draft from '../models/Draft.js';
 import { createNotification } from './notificationController.js';
 import { io } from '../server.js';
 
@@ -82,6 +83,21 @@ export const createStory = async (req, res) => {
     }
     
     await story.populate('author', 'username profilePicture');
+    
+    // Deactivate any drafts for this story
+    await Draft.updateMany(
+      {
+        author: req.userId,
+        $or: [
+          { storyId: null, type: 'story' }, // New story drafts
+          { storyId: story._id }
+        ]
+      },
+      { 
+        isActive: false,
+        updatedAt: new Date()
+      }
+    );
     
     // Clear cache since we added a new story
     clearStoriesCache();

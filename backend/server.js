@@ -14,6 +14,7 @@ import bookmarkRoutes from './routes/bookmarks.js';
 import notificationRoutes from './routes/notifications.js';
 import storyCommentRoutes from './routes/storyComments.js';
 import readingProgressRoutes from './routes/readingProgress.js';
+import draftRoutes from './routes/drafts.js';
 
 dotenv.config();
 
@@ -76,6 +77,7 @@ app.use('/api/bookmarks', bookmarkRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/story-comments', storyCommentRoutes);
 app.use('/api/reading-progress', readingProgressRoutes);
+app.use('/api/drafts', draftRoutes);
 
 // Socket.io for realtime
 io.on('connection', (socket) => {

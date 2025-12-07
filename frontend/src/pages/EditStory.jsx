@@ -18,12 +18,16 @@ import {
   Sparkles,
   FileText,
   Edit3,
-  Search
+  Search,
+  Wifi,
+  CheckCircle,
+  AlertCircle
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 import Navbar from '../components/Navbar';
 import RichTextEditor from '../components/RichTextEditor';
 import { useAuth } from '../context/AuthContext';
+import { useAutoSave } from '../hooks/useAutoSave';
 import api from '../utils/api';
 
 const EditStory = () => {
@@ -41,6 +45,61 @@ const EditStory = () => {
   });
   const [coverImagePreview, setCoverImagePreview] = useState('');
   const [chapters, setChapters] = useState([]);
+
+  // Auto-save functionality
+  const autoSaveData = {
+    title: formData.title,
+    description: formData.description,
+    category: formData.category,
+    tags: formData.tags ? formData.tags.split(',').map(tag => tag.trim()).filter(tag => tag) : [],
+    coverImage: coverImagePreview,
+    chapters: chapters
+  };
+
+  const {
+    autoSaveStatus,
+    lastSaved,
+    hasUnsavedChanges,
+    saveNow,
+    clearDraft
+  } = useAutoSave(autoSaveData, {
+    delay: 3000,
+    storyId: storyId,
+    type: 'story',
+    enabled: !!story, // Only enable after story is loaded
+    onRestore: (restoredData) => {
+      if (restoredData.title !== formData.title || 
+          restoredData.description !== formData.description ||
+          JSON.stringify(restoredData.chapters) !== JSON.stringify(chapters)) {
+        
+        // Show confirmation for restoring edits
+        const shouldRestore = window.confirm(
+          'We found unsaved changes for this story. Would you like to restore them?'
+        );
+        
+        if (shouldRestore) {
+          setFormData({
+            title: restoredData.title || formData.title,
+            description: restoredData.description || formData.description,
+            category: restoredData.category || formData.category,
+            tags: Array.isArray(restoredData.tags) 
+              ? restoredData.tags.join(', ') 
+              : restoredData.tags || formData.tags
+          });
+
+          if (restoredData.coverImage && restoredData.coverImage !== coverImagePreview) {
+            setCoverImagePreview(restoredData.coverImage);
+          }
+
+          if (restoredData.chapters && restoredData.chapters.length > 0) {
+            setChapters(restoredData.chapters);
+          }
+          
+          toast.success('Unsaved changes restored!');
+        }
+      }
+    }
+  });
 
   const categories = [
     { value: 'romance', label: 'Romance', icon: Heart, color: 'from-pink-500 to-rose-500' },
@@ -198,6 +257,9 @@ const EditStory = () => {
         }
       }
 
+      // Clear draft after successful save
+      clearDraft();
+      
       toast.success('Story updated successfully!');
       navigate(`/story/${storyId}`);
     } catch (error) {
@@ -300,11 +362,46 @@ const EditStory = () => {
           {/* Story Details */}
           <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-2xl border border-white/20 overflow-hidden">
             <div className="bg-gradient-to-r from-orange-600 to-amber-600 px-8 py-6">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
-                  <BookOpen className="h-5 w-5 text-white" />
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
+                    <BookOpen className="h-5 w-5 text-white" />
+                  </div>
+                  <h2 className="text-2xl font-bold text-white">Story Details</h2>
                 </div>
-                <h2 className="text-2xl font-bold text-white">Story Details</h2>
+                
+                {/* Auto-save Status */}
+                <div className="flex items-center gap-2 text-white/90 text-sm">
+                  {autoSaveStatus === 'saving' && (
+                    <>
+                      <Wifi className="h-4 w-4 animate-spin" />
+                      <span>Saving...</span>
+                    </>
+                  )}
+                  {autoSaveStatus === 'saved' && (
+                    <>
+                      <CheckCircle className="h-4 w-4" />
+                      <span>
+                        {lastSaved ? `Saved ${new Date(lastSaved).toLocaleTimeString()}` : 'All changes saved'}
+                      </span>
+                    </>
+                  )}
+                  {autoSaveStatus === 'error' && (
+                    <>
+                      <AlertCircle className="h-4 w-4" />
+                      <span>Save failed</span>
+                    </>
+                  )}
+                  {hasUnsavedChanges && (
+                    <button
+                      type="button"
+                      onClick={saveNow}
+                      className="ml-2 text-xs bg-white/20 hover:bg-white/30 px-2 py-1 rounded transition-colors"
+                    >
+                      Save now
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
 
