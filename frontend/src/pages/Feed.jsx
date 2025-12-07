@@ -21,7 +21,7 @@ import { io } from 'socket.io-client';
 import Navbar from '../components/Navbar';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-toastify';
-import api, { searchUsers } from '../utils/api';
+import api, { searchUsers, searchStories } from '../utils/api';
 
 const Feed = () => {
   // ==================== STATE MANAGEMENT ====================
@@ -500,21 +500,13 @@ const Feed = () => {
 
     setStorySearchLoading(true);
     try {
-      // Search through all stories by title, description, and tags
-      const filteredStories = allStories.filter(story => {
-        const searchTerm = query.toLowerCase();
-        const matchesTitle = story.title.toLowerCase().includes(searchTerm);
-        const matchesDescription = story.description?.toLowerCase().includes(searchTerm);
-        const matchesTags = story.tags?.some(tag => tag.toLowerCase().includes(searchTerm));
-        const matchesCategory = story.category?.toLowerCase().includes(searchTerm);
-        
-        return matchesTitle || matchesDescription || matchesTags || matchesCategory;
-      });
-
-      setStorySearchResults(filteredStories.slice(0, 8)); // Limit to 8 results
+      // Search through the entire database via API
+      const searchResponse = await searchStories(query.trim(), 1, 8);
+      setStorySearchResults(searchResponse.stories || []);
       setShowStorySearchResults(true);
     } catch (error) {
       console.error('Story search error:', error);
+      toast.error('Search failed. Please try again.');
     } finally {
       setStorySearchLoading(false);
     }

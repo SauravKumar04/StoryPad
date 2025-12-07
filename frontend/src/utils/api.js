@@ -98,4 +98,15 @@ export const markAllNotificationsAsRead = async () => {
   }
 };
 
+// Story search function
+export const searchStories = async (query, page = 1, limit = 20) => {
+  try {
+    const response = await api.get(`/stories/search?q=${encodeURIComponent(query)}&page=${page}&limit=${limit}`);
+    return response.data;
+  } catch (error) {
+    console.error('Error searching stories:', error);
+    throw error;
+  }
+};
+
 export default api;

@@ -403,3 +403,63 @@ export const getMustWatchStories = async (req, res) => {
     res.status(500).json({ message: 'Something went wrong' });
   }
 };
+
+export const searchStories = async (req, res) => {
+  try {
+    const { q, page = 1, limit = 20 } = req.query;
+    
+    if (!q || q.trim().length < 2) {
+      return res.status(400).json({ message: 'Search query must be at least 2 characters long' });
+    }
+    
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const searchTerm = q.trim();
+    
+    // Create a case-insensitive search filter
+    const searchFilter = {
+      isPublished: true,
+      $or: [
+        { title: { $regex: searchTerm, $options: 'i' } },
+        { description: { $regex: searchTerm, $options: 'i' } },
+        { category: { $regex: searchTerm, $options: 'i' } },
+        { tags: { $in: [new RegExp(searchTerm, 'i')] } }
+      ]
+    };
+    
+    // Execute search with pagination
+    const stories = await Story.find(searchFilter)
+      .select('title description coverImage author tags category targetAudience status likes reads createdAt updatedAt')
+      .populate('author', 'username profilePicture')
+      .sort({ 
+        // Sort by popularity first
+        reads: -1, 
+        likes: -1, 
+        createdAt: -1 
+      })
+      .skip(skip)
+      .limit(parseInt(limit))
+      .lean();
+    
+    // Get total count for pagination
+    const total = await Story.countDocuments(searchFilter);
+    const totalPages = Math.ceil(total / parseInt(limit));
+    
+    const responseData = {
+      stories,
+      total,
+      searchQuery: searchTerm,
+      pagination: {
+        currentPage: parseInt(page),
+        totalPages,
+        totalStories: total,
+        hasNext: parseInt(page) < totalPages,
+        hasPrev: parseInt(page) > 1
+      }
+    };
+    
+    res.json(responseData);
+  } catch (error) {
+    console.error('Error searching stories:', error);
+    res.status(500).json({ message: 'Something went wrong during search' });
+  }
+};

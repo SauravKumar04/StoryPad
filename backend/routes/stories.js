@@ -1,5 +1,5 @@
 import express from 'express';
-import { createStory, getStories, getStory, likeStory, updateStory, deleteStory, incrementReads, getMustWatchStories } from '../controllers/storyController.js';
+import { createStory, getStories, getStory, likeStory, updateStory, deleteStory, incrementReads, getMustWatchStories, searchStories } from '../controllers/storyController.js';
 import {
   addStoryComment,
   getStoryComments,
@@ -14,6 +14,7 @@ const router = express.Router();
 
 router.post('/', auth, createStory);
 router.get('/', getStories);
+router.get('/search', searchStories);
 router.get('/must-watch', getMustWatchStories);
 router.get('/:storyId', getStory);
 router.put('/:storyId', auth, updateStory);
